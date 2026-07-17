@@ -57,7 +57,7 @@ export const evidenceItemSchema = z
   .object({
     quote: z.string().trim().min(1).max(4_000),
     startOffset: z.number().int().nonnegative().optional(),
-    endOffset: z.number().int().positive().optional(),
+    endOffset: z.number().int().min(1).optional(),
   })
   .strict()
   .refine(
@@ -97,6 +97,11 @@ export const sourceDocumentSuccessInputSchema = z
     rawContent: z.string().min(1).max(5_000_000),
     contentHash: z.string().regex(/^[a-f0-9]{64}$/u),
     httpStatus: z.number().int().min(100).max(599),
+    canonicalUrl: publicHttpUrlSchema.optional(),
+    metadata: jsonObjectSchema.default({}),
+    outboundLinks: z.array(publicHttpUrlSchema).max(200).default([]),
+    fetchDurationMs: z.number().int().nonnegative().default(0),
+    fetchMode: z.enum(["HTTP", "PLAYWRIGHT"]).default("HTTP"),
     fetchedAt: z.date().default(() => new Date()),
   })
   .strict();

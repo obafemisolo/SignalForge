@@ -14,5 +14,11 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@signalforge/schemas": "workspace:*",
+    "bullmq": "^5.58.5",
+    "ioredis": "^5.7.0",
+    "zod": "^3.25.67"
   }
 }

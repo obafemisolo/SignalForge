@@ -24,50 +24,74 @@ enum SourceFetchStatus {
   SKIPPED
 }
 
+enum SourceProcessingStatus {
+  PENDING
+  FETCHING
+  EXTRACTING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+enum SourceFetchMode {
+  HTTP
+  PLAYWRIGHT
+}
+
 model ResearchJob {
-  id                String            @id @default(uuid()) @db.Uuid
-  query             String            @db.Text
-  status            ResearchJobStatus @default(QUEUED)
-  requestedSources  String[]
-  extractionSchema  Json
-  totalSources      Int               @default(0)
-  successfulSources Int               @default(0)
-  failedSources     Int               @default(0)
-  duplicatesRemoved Int               @default(0)
-  startedAt         DateTime?         @db.Timestamptz(3)
-  completedAt       DateTime?         @db.Timestamptz(3)
-  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime          @updatedAt @db.Timestamptz(3)
-  sourceDocuments   SourceDocument[]
-  extractedRecords  ExtractedRecord[]
-  events            JobEvent[]
+  id                 String            @id @default(uuid()) @db.Uuid
+  query              String            @db.Text
+  status             ResearchJobStatus @default(QUEUED)
+  requestedSources   String[]
+  extractionSchema   Json
+  idempotencyKeyHash String?           @unique @db.Char(64)
+  requestFingerprint String?           @db.Char(64)
+  totalSources       Int               @default(0)
+  successfulSources  Int               @default(0)
+  failedSources      Int               @default(0)
+  duplicatesRemoved  Int               @default(0)
+  startedAt          DateTime?         @db.Timestamptz(3)
+  completedAt        DateTime?         @db.Timestamptz(3)
+  createdAt          DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
+  sourceDocuments    SourceDocument[]
+  extractedRecords   ExtractedRecord[]
+  events             JobEvent[]
 
   @@index([status, createdAt(sort: Desc)])
   @@map("research_jobs")
 }
 
 model SourceDocument {
-  id               String            @id @default(uuid()) @db.Uuid
-  researchJobId    String            @db.Uuid
-  sourceUrl        String            @db.VarChar(2048)
-  normalizedUrl    String            @db.VarChar(2048)
-  domain           String            @db.VarChar(253)
-  title            String?           @db.Text
-  rawContent       String?           @db.Text
-  contentHash      String?           @db.Char(64)
-  fetchStatus      SourceFetchStatus @default(PENDING)
-  httpStatus       Int?              @db.SmallInt
-  fetchedAt        DateTime?         @db.Timestamptz(3)
-  errorCode        String?           @db.VarChar(100)
-  errorMessage     String?           @db.Text
-  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
-  researchJob      ResearchJob       @relation(fields: [researchJobId], references: [id], onDelete: Cascade)
-  extractedRecords ExtractedRecord[]
+  id                String                 @id @default(uuid()) @db.Uuid
+  researchJobId     String                 @db.Uuid
+  sourceUrl         String                 @db.VarChar(2048)
+  normalizedUrl     String                 @db.VarChar(2048)
+  domain            String                 @db.VarChar(253)
+  title             String?                @db.Text
+  rawContent        String?                @db.Text
+  contentHash       String?                @db.Char(64)
+  canonicalUrl      String?                @db.VarChar(2048)
+  metadata          Json?
+  outboundLinks     String[]               @default([])
+  fetchStatus       SourceFetchStatus      @default(PENDING)
+  fetchMode         SourceFetchMode?
+  fetchDurationMs   Int?
+  processingStatus  SourceProcessingStatus @default(PENDING)
+  processingAttempt Int                    @default(0)
+  httpStatus        Int?                   @db.SmallInt
+  fetchedAt         DateTime?              @db.Timestamptz(3)
+  errorCode         String?                @db.VarChar(100)
+  errorMessage      String?                @db.Text
+  createdAt         DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @db.Timestamptz(3)
+  researchJob       ResearchJob            @relation(fields: [researchJobId], references: [id], onDelete: Cascade)
+  extractedRecords  ExtractedRecord[]
 
   @@unique([id, researchJobId])
   @@unique([researchJobId, normalizedUrl])
   @@index([researchJobId, fetchStatus])
+  @@index([researchJobId, processingStatus])
   @@index([domain, fetchedAt(sort: Desc)])
   @@index([contentHash])
   @@map("source_documents")

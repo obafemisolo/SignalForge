@@ -50,6 +50,19 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  redis-test:
+    image: redis:7-alpine
+    profiles: ["test"]
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   redis-data:

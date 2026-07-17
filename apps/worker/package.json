@@ -10,6 +10,16 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --project tsconfig.json"
   },
+  "dependencies": {
+    "@signalforge/config": "workspace:*",
+    "@signalforge/database": "workspace:*",
+    "@signalforge/extraction": "workspace:*",
+    "@signalforge/observability": "workspace:*",
+    "@signalforge/queue": "workspace:*",
+    "@signalforge/schemas": "workspace:*",
+    "bullmq": "^5.58.5",
+    "pino": "^9.7.0"
+  },
   "devDependencies": {
     "tsx": "^4.19.4"
   }

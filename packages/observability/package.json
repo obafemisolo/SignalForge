@@ -14,5 +14,8 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "pino": "^9.7.0"
   }
 }

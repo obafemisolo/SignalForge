@@ -9,6 +9,7 @@ import {
 } from "@signalforge/schemas";
 
 import {
+  Prisma,
   SourceFetchStatus,
   type PrismaClient,
   type SourceDocument,
@@ -42,6 +43,7 @@ export class SourceDocumentRepository {
       where: { id },
       data: {
         fetchStatus: SourceFetchStatus.FETCHING,
+        processingStatus: "FETCHING",
         errorCode: null,
         errorMessage: null,
       },
@@ -59,9 +61,15 @@ export class SourceDocumentRepository {
       where: { id },
       data: {
         fetchStatus: SourceFetchStatus.SUCCEEDED,
+        processingStatus: "SUCCEEDED",
         rawContent: validated.rawContent,
         contentHash: validated.contentHash,
         httpStatus: validated.httpStatus,
+        canonicalUrl: validated.canonicalUrl,
+        metadata: validated.metadata as Prisma.InputJsonObject,
+        outboundLinks: validated.outboundLinks,
+        fetchDurationMs: validated.fetchDurationMs,
+        fetchMode: validated.fetchMode,
         fetchedAt: validated.fetchedAt,
         ...(validated.title !== undefined ? { title: validated.title } : {}),
         errorCode: null,
@@ -81,6 +89,7 @@ export class SourceDocumentRepository {
       where: { id },
       data: {
         fetchStatus: validated.fetchStatus,
+        processingStatus: "FAILED",
         fetchedAt: validated.fetchedAt,
         errorCode: validated.errorCode,
         errorMessage: validated.errorMessage,

@@ -11,6 +11,12 @@ export default defineConfig({
       "@signalforge/database": fileURLToPath(
         new URL("./packages/database/src/index.ts", import.meta.url),
       ),
+      "@signalforge/config": fileURLToPath(
+        new URL("./packages/config/src/index.ts", import.meta.url),
+      ),
+      "@signalforge/queue": fileURLToPath(
+        new URL("./packages/queue/src/index.ts", import.meta.url),
+      ),
       "@signalforge/schemas": fileURLToPath(
         new URL("./packages/schemas/src/index.ts", import.meta.url),
       ),
@@ -18,7 +24,11 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["packages/**/*.test.ts", "tests/**/*.test.ts"],
+    include: [
+      "apps/**/*.test.ts",
+      "packages/**/*.test.ts",
+      "tests/**/*.test.ts",
+    ],
     passWithNoTests: false,
   },
 });

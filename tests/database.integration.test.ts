@@ -75,6 +75,70 @@ describeWithDatabase("database repositories", () => {
     expect(researchJob.totalSources).toBe(1);
   });
 
+  it("creates an idempotent job with source placeholders and retries only failures", async () => {
+    const jobInput = {
+      query: "Find retryable signals",
+      requestedSources: ["https://example.com/retry"],
+      extractionSchema,
+    };
+    const sources = [
+      {
+        sourceUrl: "https://example.com/retry",
+        normalizedUrl: "https://example.com/retry",
+        domain: "example.com",
+      },
+    ];
+    const idempotency = {
+      idempotencyKeyHash: createHash("sha256")
+        .update("integration-key")
+        .digest("hex"),
+      requestFingerprint: createHash("sha256")
+        .update("integration-request")
+        .digest("hex"),
+    };
+
+    const first = await repositories.researchJobs.createWithSources(
+      jobInput,
+      sources,
+      idempotency,
+    );
+    const repeated = await repositories.researchJobs.createWithSources(
+      jobInput,
+      sources,
+      idempotency,
+    );
+
+    expect(first.reused).toBe(false);
+    expect(repeated.reused).toBe(true);
+    expect(repeated.job.id).toBe(first.job.id);
+    await expect(prisma.sourceDocument.count()).resolves.toBe(1);
+
+    const source = await prisma.sourceDocument.findFirstOrThrow({
+      where: { researchJobId: first.job.id },
+    });
+    await repositories.sourceDocuments.markFailed(source.id, {
+      fetchStatus: "FAILED",
+      errorCode: "TIMEOUT",
+      errorMessage: "The source timed out",
+    });
+
+    await expect(
+      repositories.researchJobs.prepareFailedSourcesForRetry(first.job.id),
+    ).resolves.toEqual([source.id]);
+    await expect(
+      repositories.researchJobs.prepareFailedSourcesForRetry(first.job.id),
+    ).rejects.toBeInstanceOf(PersistenceConflictError);
+
+    await expect(
+      repositories.researchJobs.createWithSources(jobInput, sources, {
+        ...idempotency,
+        requestFingerprint: createHash("sha256")
+          .update("different-request")
+          .digest("hex"),
+      }),
+    ).rejects.toBeInstanceOf(PersistenceConflictError);
+  });
+
   it("persists only schema-valid records with source-backed evidence", async () => {
     const researchJob = await repositories.researchJobs.create({
       query: "Research SignalForge",
@@ -225,5 +289,87 @@ describeWithDatabase("database repositories", () => {
     expect(events[0]?.eventType).toBe("job.started");
     expect(updatedJob?.status).toBe("COMPLETED");
     expect(updatedJob?.successfulSources).toBe(1);
+  });
+
+  it("serializes terminal progress and completes with partial success", async () => {
+    const sources = [
+      {
+        sourceUrl: "https://example.com/success",
+        normalizedUrl: "https://example.com/success",
+        domain: "example.com",
+      },
+      {
+        sourceUrl: "https://example.com/failure",
+        normalizedUrl: "https://example.com/failure",
+        domain: "example.com",
+      },
+    ];
+    const created = await repositories.researchJobs.createWithSources(
+      {
+        query: "Research two independent sources",
+        requestedSources: sources.map((source) => source.sourceUrl),
+        extractionSchema,
+      },
+      sources,
+    );
+    const orchestration = await repositories.pipeline.startOrchestration(
+      created.job.id,
+    );
+    const [successfulSource, failedSource] = orchestration.sources;
+
+    if (successfulSource === undefined || failedSource === undefined) {
+      throw new Error("Expected two orchestration sources");
+    }
+
+    for (const source of orchestration.sources) {
+      await repositories.pipeline.markFetchStarted(
+        source.id,
+        source.processingAttempt,
+      );
+      await repositories.pipeline.markFetchSucceeded(
+        source.id,
+        source.processingAttempt,
+        {
+          rawContent: `Evidence from ${source.normalizedUrl}`,
+          contentHash: createHash("sha256")
+            .update(source.normalizedUrl)
+            .digest("hex"),
+          httpStatus: 200,
+        },
+      );
+      await repositories.pipeline.markExtractionSucceeded(
+        source.id,
+        source.processingAttempt,
+      );
+    }
+
+    await repositories.pipeline.completeSource(
+      successfulSource.id,
+      successfulSource.processingAttempt,
+    );
+    await repositories.pipeline.failSource(
+      failedSource.id,
+      failedSource.processingAttempt,
+      {
+        queueName: "record-processing",
+        jobId: `process-${failedSource.id}-0`,
+        errorCode: "RECORD_PROCESSING_FAILED",
+        errorMessage: "The final processor rejected this source",
+        fetchFailed: false,
+      },
+    );
+
+    const job = await repositories.researchJobs.findById(created.job.id);
+    const events = await repositories.jobEvents.listForJob(created.job.id);
+
+    expect(job).toMatchObject({
+      status: "PARTIAL",
+      successfulSources: 1,
+      failedSources: 1,
+    });
+    expect(job?.completedAt).toBeInstanceOf(Date);
+    expect(
+      events.some((event) => event.eventType === "research_job.completed"),
+    ).toBe(true);
   });
 });

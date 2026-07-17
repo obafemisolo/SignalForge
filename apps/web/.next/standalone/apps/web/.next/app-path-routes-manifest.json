@@ -1,0 +1,9 @@
+{
+  "/api/health/route": "/api/health",
+  "/api/research-jobs/[jobId]/results/route": "/api/research-jobs/[jobId]/results",
+  "/api/research-jobs/[jobId]/route": "/api/research-jobs/[jobId]",
+  "/api/research-jobs/route": "/api/research-jobs",
+  "/_not-found/page": "/_not-found",
+  "/page": "/",
+  "/research-jobs/[jobId]/page": "/research-jobs/[jobId]"
+}

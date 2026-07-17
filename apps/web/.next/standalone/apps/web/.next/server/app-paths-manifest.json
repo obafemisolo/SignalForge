@@ -1,0 +1,9 @@
+{
+  "/api/health/route": "app/api/health/route.js",
+  "/api/research-jobs/[jobId]/results/route": "app/api/research-jobs/[jobId]/results/route.js",
+  "/api/research-jobs/[jobId]/route": "app/api/research-jobs/[jobId]/route.js",
+  "/api/research-jobs/route": "app/api/research-jobs/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/research-jobs/[jobId]/page": "app/research-jobs/[jobId]/page.js"
+}

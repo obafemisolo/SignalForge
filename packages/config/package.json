@@ -1,0 +1,21 @@
+{
+  "name": "@signalforge/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Validated environment configuration for SignalForge.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^3.25.64"
+  }
+}

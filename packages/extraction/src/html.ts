@@ -11,6 +11,8 @@ export interface ParsedContent {
   accessRestricted: boolean;
 }
 
+type CheerioSelection = ReturnType<cheerio.CheerioAPI>;
+
 const removableSelectors = [
   "script",
   "style",
@@ -54,7 +56,7 @@ export function parseHtml(html: string, finalUrl: string): ParsedContent {
   $(removableSelectors.join(",")).remove();
   const root = selectContentRoot($);
   const outboundLinks = collectLinks($, root, finalUrl);
-  const text = normalizeReadableText(root.text());
+  const text = extractReadableText(root);
 
   return {
     ...(title === undefined ? {} : { title }),
@@ -64,6 +66,23 @@ export function parseHtml(html: string, finalUrl: string): ParsedContent {
     outboundLinks,
     accessRestricted,
   };
+}
+
+function extractReadableText(root: CheerioSelection): string {
+  const blocks: string[] = [];
+  root
+    .find(
+      "h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, figcaption, dt, dd, td",
+    )
+    .each((_index, element) => {
+      const text = cheerio.load(element).root().text();
+      if (text.trim() !== "") {
+        blocks.push(text);
+      }
+    });
+  return normalizeReadableText(
+    blocks.length === 0 ? root.text() : blocks.join("\n"),
+  );
 }
 
 export function normalizeReadableText(value: string): string {
@@ -85,13 +104,14 @@ export function normalizeReadableText(value: string): string {
     .join("\n");
 }
 
-export function isMeaningfulContent(text: string, minimumChars: number): boolean {
+export function isMeaningfulContent(
+  text: string,
+  minimumChars: number,
+): boolean {
   return text.replace(/\s/gu, "").length >= minimumChars;
 }
 
-function selectContentRoot(
-  $: cheerio.CheerioAPI,
-): cheerio.Cheerio<cheerio.AnyNode> {
+function selectContentRoot($: cheerio.CheerioAPI): CheerioSelection {
   const candidates = $("main, article, [role='main']").toArray();
   if (candidates.length === 0) {
     return $("body").first();
@@ -119,13 +139,15 @@ function collectMetadata($: cheerio.CheerioAPI): ExtractionMetadata {
     ["language", normalizeWhitespace($("html").attr("lang") ?? "")],
   ];
   return Object.fromEntries(
-    entries.filter((entry): entry is [string, string] => entry[1] !== undefined),
+    entries.filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
   );
 }
 
 function collectLinks(
   $: cheerio.CheerioAPI,
-  root: cheerio.Cheerio<cheerio.AnyNode>,
+  root: CheerioSelection,
   baseUrl: string,
 ): string[] {
   const links = new Set<string>();

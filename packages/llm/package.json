@@ -14,5 +14,9 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@signalforge/schemas": "workspace:*",
+    "zod": "^3.25.67"
   }
 }

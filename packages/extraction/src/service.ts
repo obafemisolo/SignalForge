@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 
 import { ExtractionError, toExtractionError } from "./errors.js";
-import { parseHtml, isMeaningfulContent, normalizeReadableText } from "./html.js";
+import {
+  parseHtml,
+  isMeaningfulContent,
+  normalizeReadableText,
+} from "./html.js";
 import { NodeHttpTransport, SafeHttpClient } from "./http-client.js";
 import { RequestLimiter } from "./limiter.js";
 import { PlaywrightHtmlRenderer } from "./playwright-renderer.js";
@@ -26,7 +30,7 @@ export class ControlledWebExtractor {
     signal: AbortSignal,
   ): Promise<ExtractionResult> {
     const startedAt = Date.now();
-    let mode = "HTTP" as const;
+    let mode: "HTTP" | "PLAYWRIGHT" = "HTTP";
     try {
       const normalizedUrl = normalizeSourceUrl(sourceUrl);
       await this.robots.assertAllowed(normalizedUrl, signal);
@@ -99,7 +103,10 @@ export class ControlledWebExtractor {
         fetchDurationMs: Date.now() - startedAt,
       };
     } catch (error: unknown) {
-      throw toExtractionError(error).withTelemetry(Date.now() - startedAt, mode);
+      throw toExtractionError(error).withTelemetry(
+        Date.now() - startedAt,
+        mode,
+      );
     }
   }
 

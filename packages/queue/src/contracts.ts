@@ -37,7 +37,7 @@ export const researchOrchestrationJobNameSchema = z.enum([
 ]);
 
 export const researchOrchestrationJobDataSchema = baseJobDataSchema.extend({
-  sourceDocumentIds: z.array(persistenceIdSchema).min(1).optional(),
+  sourceDocumentIds: z.array(persistenceIdSchema).min(1).max(100).optional(),
 });
 
 export const sourceStageJobDataSchema = baseJobDataSchema.extend({
@@ -100,7 +100,17 @@ export interface ResearchOrchestrationQueue {
     },
   ): Promise<void>;
   checkHealth(): Promise<boolean>;
+  checkWorkerHealth(maxAgeMs: number): Promise<boolean>;
+  getQueueDepths(): Promise<QueueDepthSnapshot[]>;
   close(): Promise<void>;
+}
+
+export interface QueueDepthSnapshot {
+  queueName: PipelineQueueName;
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
 }
 
 export interface PipelineQueuePublisher extends ResearchOrchestrationQueue {

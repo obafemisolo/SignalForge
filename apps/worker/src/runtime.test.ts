@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WorkerRuntime, type Closable } from "./runtime.js";
+import { WorkerRuntime, assertQueuePayload, type Closable } from "./runtime.js";
 
 function closable(name: string, events: string[]): Closable {
   return {
@@ -22,5 +22,21 @@ describe("worker graceful shutdown", () => {
 
     expect(events.slice(0, 2).sort()).toEqual(["worker-a", "worker-b"]);
     expect(events.slice(2)).toEqual(["queues", "database"]);
+  });
+
+  it("rejects malformed queue payloads before pipeline processing", () => {
+    expect(() =>
+      assertQueuePayload(
+        { parse: (value: unknown) => String(value) },
+        {
+          parse: () => {
+            throw new Error("invalid");
+          },
+        },
+        "source.fetch",
+        {},
+        "source-fetch",
+      ),
+    ).toThrow("Invalid source-fetch job payload");
   });
 });

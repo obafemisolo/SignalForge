@@ -24,7 +24,9 @@ export class PlaywrightHtmlRenderer implements HtmlRenderer {
         userAgent: this.userAgent,
       });
       try {
-        await context.route("**/*", async (route) => route.abort("blockedbyclient"));
+        await context.route("**/*", async (route) =>
+          route.abort("blockedbyclient"),
+        );
         const page = await context.newPage();
         signal.throwIfAborted();
         await page.setContent(injectBaseUrl(html, baseUrl), {

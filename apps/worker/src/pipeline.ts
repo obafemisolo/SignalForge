@@ -3,7 +3,7 @@ import {
   type PipelineRepository,
   type SourceDocument,
 } from "@signalforge/database";
-import type { Logger } from "@signalforge/observability";
+import type { Logger, SignalForgeMetrics } from "@signalforge/observability";
 import {
   QUEUE_NAMES,
   type PipelineQueuePublisher,
@@ -26,7 +26,14 @@ export interface ContentExtractor {
 }
 
 export interface RecordProcessor {
-  process(source: SourceDocument, signal: AbortSignal): Promise<void>;
+  process(
+    source: SourceDocument,
+    signal: AbortSignal,
+  ): Promise<PipelineRecordProcessingOutcome | void>;
+}
+
+export interface PipelineRecordProcessingOutcome {
+  duplicatesRemoved?: number;
 }
 
 export interface PipelineProcessors {
@@ -60,6 +67,7 @@ export class PipelineJobProcessor {
     private readonly publisher: PipelineQueuePublisher,
     private readonly processors: PipelineProcessors,
     private readonly logger: Logger,
+    private readonly metrics?: SignalForgeMetrics,
   ) {}
 
   public async processOrchestration(
@@ -87,11 +95,16 @@ export class PipelineJobProcessor {
         );
       },
       async (error) => {
-        await this.repository.failOrchestration(
+        const progress = await this.repository.failOrchestration(
           job.data.researchJobId,
           requiredJobId(job),
           error.message,
         );
+        if (progress.isTerminal) {
+          this.metrics?.observeResearchJob(
+            progress.status.toLowerCase() as "completed" | "partial" | "failed",
+          );
+        }
       },
     );
   }
@@ -140,6 +153,7 @@ export class PipelineJobProcessor {
           result,
         );
         if (changed) {
+          this.metrics?.observeFetch("success");
           await this.publisher.enqueueContentExtraction(
             nextStageData(job.data),
           );
@@ -203,11 +217,20 @@ export class PipelineJobProcessor {
           return;
         }
 
-        await this.processors.recordProcessor.process(source, signal);
-        await this.repository.completeSource(
+        const outcome = await this.processors.recordProcessor.process(
+          source,
+          signal,
+        );
+        this.metrics?.observeDuplicatesRemoved(outcome?.duplicatesRemoved ?? 0);
+        const progress = await this.repository.completeSource(
           source.id,
           job.data.pipelineAttempt,
         );
+        if (progress?.isTerminal) {
+          this.metrics?.observeResearchJob(
+            progress.status.toLowerCase() as "completed" | "partial" | "failed",
+          );
+        }
       },
       (error) => this.failSource(job, error, false),
     );
@@ -233,18 +256,41 @@ export class PipelineJobProcessor {
     error: Error,
     fetchFailed: boolean,
   ): Promise<void> {
+    const classification = classifyPipelineError(error);
     const input: PipelineFailureInput = {
       queueName: job.queueName,
       jobId: requiredJobId(job),
-      errorCode: `${job.queueName.toUpperCase().replaceAll("-", "_")}_FAILED`,
+      errorCode:
+        classification?.code ??
+        `${job.queueName.toUpperCase().replaceAll("-", "_")}_FAILED`,
       errorMessage: error.message,
       fetchFailed,
+      ...(classification?.httpStatus === undefined
+        ? {}
+        : { httpStatus: classification.httpStatus }),
+      ...(classification?.fetchDurationMs === undefined
+        ? {}
+        : { fetchDurationMs: classification.fetchDurationMs }),
+      ...(classification?.fetchMode === undefined
+        ? {}
+        : { fetchMode: classification.fetchMode }),
+      ...(classification?.fetchStatus === undefined
+        ? {}
+        : { fetchStatus: classification.fetchStatus }),
+      ...(classification?.issues === undefined
+        ? {}
+        : { errorDetails: { issues: [...classification.issues] } }),
     };
-    await this.repository.failSource(
+    const progress = await this.repository.failSource(
       job.data.sourceDocumentId,
       job.data.pipelineAttempt,
       input,
     );
+    if (progress?.isTerminal) {
+      this.metrics?.observeResearchJob(
+        progress.status.toLowerCase() as "completed" | "partial" | "failed",
+      );
+    }
   }
 
   private async executeWithFailurePolicy<
@@ -262,26 +308,49 @@ export class PipelineJobProcessor {
       jobId: requiredJobId(job),
       researchJobId: job.data.researchJobId,
       sourceDocumentId,
-      attemptNumber,
+      attempt: attemptNumber,
+      requestId: job.data.requestId,
       queueName,
     };
+    const startedAt = Date.now();
     this.logger.info(context, "Worker job started");
 
     try {
       await withTimeout(job.data.timeoutMs, workerSignal, operation);
-      this.logger.info(context, "Worker job completed");
+      const durationMs = Date.now() - startedAt;
+      this.metrics?.observeQueueJob(queueName, "success", durationMs);
+      this.logger.info({ ...context, durationMs }, "Worker job completed");
     } catch (caught: unknown) {
       const error = toError(caught);
       const permanent =
         error instanceof UnrecoverablePipelineError ||
+        classifyPipelineError(error)?.retryable === false ||
         attemptNumber >= (job.opts.attempts ?? 1);
 
+      const durationMs = Date.now() - startedAt;
+      this.metrics?.observeQueueJob(queueName, "failure", durationMs);
+      const classification = classifyPipelineError(error);
+      const errorCode =
+        classification?.code ??
+        `${queueName.toUpperCase().replaceAll("-", "_")}_FAILED`;
+      if (queueName === QUEUE_NAMES.sourceFetch) {
+        this.metrics?.observeFetch("failure", errorCode);
+      }
       if (!permanent) {
-        this.logger.warn({ ...context, err: error }, "Worker job will retry");
+        this.metrics?.observeRetry(queueName, errorCode);
+        this.logger.warn(
+          { ...context, durationMs, errorCode, err: error },
+          "Worker job will retry",
+        );
         throw error;
       }
 
       await onPermanentFailure(error);
+      if (queueName === QUEUE_NAMES.recordProcessing) {
+        if (!errorCode.startsWith("LLM_")) {
+          this.metrics?.observeExtraction("failure", errorCode);
+        }
+      }
       await this.publisher.enqueueDeadLetter({
         queueName,
         jobName: job.name,
@@ -300,12 +369,51 @@ export class PipelineJobProcessor {
         },
       });
       this.logger.error(
-        { ...context, err: error },
+        { ...context, durationMs, errorCode, err: error },
         "Worker job permanently failed",
       );
       throw new UnrecoverableError(error.message);
     }
   }
+}
+
+interface ClassifiedPipelineError {
+  code?: string;
+  retryable?: boolean;
+  httpStatus?: number;
+  fetchDurationMs?: number;
+  fetchMode?: "HTTP" | "PLAYWRIGHT";
+  fetchStatus?: "FAILED" | "BLOCKED" | "SKIPPED";
+  issues?: readonly string[];
+}
+
+function classifyPipelineError(
+  error: Error,
+): ClassifiedPipelineError | undefined {
+  const candidate = error as Error & Partial<ClassifiedPipelineError>;
+  if (typeof candidate.retryable !== "boolean") {
+    return undefined;
+  }
+  return {
+    ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
+    retryable: candidate.retryable,
+    ...(typeof candidate.httpStatus === "number"
+      ? { httpStatus: candidate.httpStatus }
+      : {}),
+    ...(typeof candidate.fetchDurationMs === "number"
+      ? { fetchDurationMs: candidate.fetchDurationMs }
+      : {}),
+    ...(candidate.fetchMode === "HTTP" || candidate.fetchMode === "PLAYWRIGHT"
+      ? { fetchMode: candidate.fetchMode }
+      : {}),
+    ...(["FAILED", "BLOCKED", "SKIPPED"].includes(candidate.fetchStatus ?? "")
+      ? { fetchStatus: candidate.fetchStatus }
+      : {}),
+    ...(Array.isArray(candidate.issues) &&
+    candidate.issues.every((issue) => typeof issue === "string")
+      ? { issues: candidate.issues as string[] }
+      : {}),
+  };
 }
 
 export function createUnavailableProcessors(): PipelineProcessors {

@@ -13,6 +13,7 @@ import {
   sourceStageJobDataSchema,
   type DeadLetterJobData,
   type PipelineQueuePublisher,
+  type QueueDepthSnapshot,
   type QueueTimeouts,
   type ResearchOrchestrationJobData,
   type ResearchOrchestrationJobName,
@@ -20,7 +21,12 @@ import {
   type SourceStageJobData,
   type SourceStageJobRequest,
 } from "./contracts.js";
-import { getJobOptions } from "./job-options.js";
+import {
+  defaultQueueRetention,
+  getJobOptions,
+  type QueueRetention,
+} from "./job-options.js";
+import { WORKER_HEARTBEAT_KEY } from "./heartbeat.js";
 import {
   contentExtractionJobId,
   deadLetterJobId,
@@ -33,6 +39,7 @@ export interface BullMqQueueSystemOptions {
   redisUrl: string;
   prefix?: string;
   timeouts?: Partial<QueueTimeouts>;
+  retention?: Partial<QueueRetention>;
 }
 
 const defaultTimeouts: QueueTimeouts = {
@@ -45,6 +52,7 @@ const defaultTimeouts: QueueTimeouts = {
 export class BullMqQueueSystem implements PipelineQueuePublisher {
   private readonly redis: Redis;
   private readonly timeouts: QueueTimeouts;
+  private readonly retention: QueueRetention;
   private readonly orchestrationQueue: Queue<
     ResearchOrchestrationJobData,
     void,
@@ -73,6 +81,7 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
 
   public constructor(options: BullMqQueueSystemOptions) {
     this.timeouts = { ...defaultTimeouts, ...options.timeouts };
+    this.retention = { ...defaultQueueRetention, ...options.retention };
     this.redis = createProducerRedisConnection(options.redisUrl);
     const connection = this.redis;
     const queueOptions = {
@@ -105,6 +114,7 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
       getJobOptions(
         QUEUE_NAMES.researchOrchestration,
         orchestrationJobId(data),
+        this.retention,
       ),
     );
   }
@@ -122,6 +132,7 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
       getJobOptions(
         QUEUE_NAMES.researchOrchestration,
         orchestrationJobId(data),
+        this.retention,
       ),
     );
   }
@@ -145,6 +156,7 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
           opts: getJobOptions(
             QUEUE_NAMES.sourceFetch,
             sourceFetchJobId(payload),
+            this.retention,
           ),
         };
       }),
@@ -164,6 +176,7 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
       getJobOptions(
         QUEUE_NAMES.contentExtraction,
         contentExtractionJobId(payload),
+        this.retention,
       ),
     );
   }
@@ -181,6 +194,7 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
       getJobOptions(
         QUEUE_NAMES.recordProcessing,
         recordProcessingJobId(payload),
+        this.retention,
       ),
     );
   }
@@ -190,7 +204,11 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
     await this.deadLetterQueue.add(
       "job.dead-lettered",
       payload,
-      getJobOptions(QUEUE_NAMES.deadLetter, deadLetterJobId(payload)),
+      getJobOptions(
+        QUEUE_NAMES.deadLetter,
+        deadLetterJobId(payload),
+        this.retention,
+      ),
     );
   }
 
@@ -203,6 +221,46 @@ export class BullMqQueueSystem implements PipelineQueuePublisher {
     } catch {
       return false;
     }
+  }
+
+  public async checkWorkerHealth(maxAgeMs: number): Promise<boolean> {
+    try {
+      if (this.redis.status === "wait") {
+        await this.redis.connect();
+      }
+      const cutoff = Date.now() - maxAgeMs;
+      await this.redis.zremrangebyscore(WORKER_HEARTBEAT_KEY, 0, cutoff);
+      return (await this.redis.zcard(WORKER_HEARTBEAT_KEY)) > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  public async getQueueDepths(): Promise<QueueDepthSnapshot[]> {
+    const queues = [
+      this.orchestrationQueue,
+      this.sourceFetchQueue,
+      this.contentExtractionQueue,
+      this.recordProcessingQueue,
+      this.deadLetterQueue,
+    ] as const;
+    return Promise.all(
+      queues.map(async (queue) => {
+        const counts = await queue.getJobCounts(
+          "waiting",
+          "active",
+          "delayed",
+          "failed",
+        );
+        return {
+          queueName: queue.name as QueueDepthSnapshot["queueName"],
+          waiting: counts.waiting ?? 0,
+          active: counts.active ?? 0,
+          delayed: counts.delayed ?? 0,
+          failed: counts.failed ?? 0,
+        };
+      }),
+    );
   }
 
   public async close(): Promise<void> {

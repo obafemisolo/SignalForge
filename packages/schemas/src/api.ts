@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { evidenceItemSchema, persistenceIdSchema } from "./persistence.js";
+import {
+  evidenceItemSchema,
+  persistenceIdSchema,
+  recordConflictSchema,
+  relevanceScoreExplanationSchema,
+  sourceAttributionSchema,
+} from "./persistence.js";
 
 export const researchJobStatusSchema = z.enum([
   "QUEUED",
@@ -9,6 +15,16 @@ export const researchJobStatusSchema = z.enum([
   "PARTIAL",
   "FAILED",
 ]);
+
+export const supportedHiringSignalFields = [
+  "company",
+  "website",
+  "role",
+  "location",
+  "signal",
+  "sourceUrl",
+  "evidence",
+] as const;
 
 export const researchExtractionContractSchema = z
   .object({
@@ -34,7 +50,33 @@ export const researchExtractionContractSchema = z
         "schema.fields must not contain duplicates",
       ),
   })
-  .strict();
+  .strict()
+  .superRefine((contract, context) => {
+    const allowed = new Set<string>([
+      ...supportedHiringSignalFields,
+      "confidenceScore",
+    ]);
+    if (contract.type !== "companyHiringSignal") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["type"],
+        message: "Only companyHiringSignal is supported in Phase 6",
+      });
+    }
+    if (
+      supportedHiringSignalFields.some(
+        (field) => !contract.fields.includes(field),
+      ) ||
+      contract.fields.some((field) => !allowed.has(field))
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["fields"],
+        message:
+          "companyHiringSignal requires the supported hiring signal fields",
+      });
+    }
+  });
 
 const submittedSourceSchema = z
   .string()
@@ -146,9 +188,14 @@ export const resultItemSchema = z.object({
   id: persistenceIdSchema,
   recordType: z.string(),
   structuredData: z.record(z.unknown()),
+  normalizedData: z.record(z.unknown()),
   evidence: z.array(evidenceItemSchema),
+  sourceAttributions: z.array(sourceAttributionSchema),
   confidenceScore: z.number().min(0).max(1),
   relevanceScore: z.number().min(0).max(1),
+  scoreExplanation: relevanceScoreExplanationSchema,
+  reviewRequired: z.boolean(),
+  conflictDetails: z.array(recordConflictSchema),
   source: z.object({
     url: z.string().url(),
     normalizedUrl: z.string().url(),

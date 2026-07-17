@@ -10,10 +10,14 @@ import {
 import {
   evidenceItemSchema,
   jsonObjectSchema,
+  recordConflictSchema,
+  relevanceScoreExplanationSchema,
+  sourceAttributionSchema,
   type JsonObject,
   type ResearchJobRequest,
 } from "@signalforge/schemas";
 import type { ResearchOrchestrationQueue } from "@signalforge/queue";
+import type { SignalForgeMetrics } from "@signalforge/observability";
 
 export interface AcceptedResearchJob {
   id: string;
@@ -46,9 +50,14 @@ export interface ResultsResponse {
     id: string;
     recordType: string;
     structuredData: JsonObject;
+    normalizedData: JsonObject;
     evidence: ReturnType<typeof evidenceItemSchema.parse>[];
+    sourceAttributions: ReturnType<typeof sourceAttributionSchema.parse>[];
     confidenceScore: number;
     relevanceScore: number;
+    scoreExplanation: ReturnType<typeof relevanceScoreExplanationSchema.parse>;
+    reviewRequired: boolean;
+    conflictDetails: ReturnType<typeof recordConflictSchema.parse>[];
     source: {
       url: string;
       normalizedUrl: string;
@@ -88,13 +97,14 @@ export interface ResearchJobsApi {
 }
 
 export interface ReadinessProbe {
-  check(): Promise<{ database: boolean; redis: boolean }>;
+  check(): Promise<{ database: boolean; redis: boolean; worker: boolean }>;
 }
 
 export class ResearchJobApplicationService implements ResearchJobsApi {
   public constructor(
     private readonly repository: ResearchJobRepository,
     private readonly queue: ResearchOrchestrationQueue,
+    private readonly metrics?: Pick<SignalForgeMetrics, "observeResearchJob">,
   ) {}
 
   public async create(
@@ -137,6 +147,9 @@ export class ResearchJobApplicationService implements ResearchJobsApi {
             requestFingerprint: fingerprint,
           },
     );
+    if (!result.reused) {
+      this.metrics?.observeResearchJob("created");
+    }
 
     if (!result.reused || result.job.status === "QUEUED") {
       await this.queue.enqueueResearchJob({
@@ -250,14 +263,20 @@ export class DatabaseAndQueueReadinessProbe implements ReadinessProbe {
   public constructor(
     private readonly databaseCheck: () => Promise<boolean>,
     private readonly queue: ResearchOrchestrationQueue,
+    private readonly workerMaxAgeMs = 25_000,
   ) {}
 
-  public async check(): Promise<{ database: boolean; redis: boolean }> {
-    const [database, redis] = await Promise.all([
+  public async check(): Promise<{
+    database: boolean;
+    redis: boolean;
+    worker: boolean;
+  }> {
+    const [database, redis, worker] = await Promise.all([
       this.databaseCheck().catch(() => false),
       this.queue.checkHealth(),
+      this.queue.checkWorkerHealth(this.workerMaxAgeMs),
     ]);
-    return { database, redis };
+    return { database, redis, worker };
   }
 }
 
@@ -293,9 +312,20 @@ function mapResults(
       id: record.id,
       recordType: record.recordType,
       structuredData: jsonObjectSchema.parse(record.structuredData),
+      normalizedData: jsonObjectSchema.parse(record.normalizedData),
       evidence: evidenceItemSchema.array().parse(record.evidence),
+      sourceAttributions: sourceAttributionSchema
+        .array()
+        .parse(record.sourceAttributions),
       confidenceScore: record.confidenceScore,
       relevanceScore: record.relevanceScore,
+      scoreExplanation: relevanceScoreExplanationSchema.parse(
+        record.scoreExplanation,
+      ),
+      reviewRequired: record.reviewRequired,
+      conflictDetails: recordConflictSchema
+        .array()
+        .parse(record.conflictDetails ?? []),
       source: {
         url: record.sourceDocument.sourceUrl,
         normalizedUrl: record.sourceDocument.normalizedUrl,

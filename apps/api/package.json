@@ -16,6 +16,7 @@
     "@fastify/swagger-ui": "^5.2.3",
     "@signalforge/config": "workspace:*",
     "@signalforge/database": "workspace:*",
+    "@signalforge/observability": "workspace:*",
     "@signalforge/queue": "workspace:*",
     "@signalforge/schemas": "workspace:*",
     "fastify": "^5.4.0",

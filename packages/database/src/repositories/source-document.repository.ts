@@ -9,8 +9,8 @@ import {
 } from "@signalforge/schemas";
 
 import {
-  Prisma,
   SourceFetchStatus,
+  type Prisma,
   type PrismaClient,
   type SourceDocument,
 } from "../generated/prisma/client.js";
@@ -65,7 +65,9 @@ export class SourceDocumentRepository {
         rawContent: validated.rawContent,
         contentHash: validated.contentHash,
         httpStatus: validated.httpStatus,
-        canonicalUrl: validated.canonicalUrl,
+        ...(validated.canonicalUrl === undefined
+          ? {}
+          : { canonicalUrl: validated.canonicalUrl }),
         metadata: validated.metadata as Prisma.InputJsonObject,
         outboundLinks: validated.outboundLinks,
         fetchDurationMs: validated.fetchDurationMs,
@@ -95,6 +97,12 @@ export class SourceDocumentRepository {
         errorMessage: validated.errorMessage,
         ...(validated.httpStatus !== undefined
           ? { httpStatus: validated.httpStatus }
+          : {}),
+        ...(validated.fetchDurationMs !== undefined
+          ? { fetchDurationMs: validated.fetchDurationMs }
+          : {}),
+        ...(validated.fetchMode !== undefined
+          ? { fetchMode: validated.fetchMode }
           : {}),
         rawContent: null,
         contentHash: null,

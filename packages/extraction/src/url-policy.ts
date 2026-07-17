@@ -18,7 +18,7 @@ export class SystemDnsResolver implements DnsResolver {
       const results = await lookup(hostname, { all: true, verbatim: true });
       return results.map((result) => ({
         address: result.address,
-        family: result.family,
+        family: result.family === 6 ? 6 : 4,
       }));
     } catch (error: unknown) {
       throw new ExtractionError(
@@ -102,8 +102,11 @@ export function assertPublicAddress(address: string): void {
   }
 
   let parsed = ipaddr.parse(address);
-  if (parsed.kind() === "ipv6" && parsed.isIPv4MappedAddress()) {
-    parsed = parsed.toIPv4Address();
+  if (parsed.kind() === "ipv6") {
+    const ipv6 = parsed as ipaddr.IPv6;
+    if (ipv6.isIPv4MappedAddress()) {
+      parsed = ipv6.toIPv4Address();
+    }
   }
   if (parsed.range() !== "unicast") {
     throw new ExtractionError(

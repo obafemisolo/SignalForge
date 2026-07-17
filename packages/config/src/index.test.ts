@@ -21,6 +21,19 @@ describe("loadEnvironment", () => {
       WORKER_SOURCE_FETCH_CONCURRENCY: 5,
       WORKER_CONTENT_EXTRACTION_CONCURRENCY: 4,
       WORKER_RECORD_PROCESSING_CONCURRENCY: 4,
+      WORKER_HEARTBEAT_INTERVAL_MS: 10_000,
+      WORKER_HEARTBEAT_TTL_MS: 30_000,
+      WORKER_STALLED_INTERVAL_MS: 30_000,
+      WORKER_MAX_STALLED_COUNT: 2,
+      WORKER_LOCK_DURATION_MS: 120_000,
+      WORKER_METRICS_HOST: "0.0.0.0",
+      WORKER_METRICS_PORT: 9464,
+      READINESS_WORKER_MAX_AGE_MS: 25_000,
+      QUEUE_COMPLETED_RETENTION_AGE_SECONDS: 86_400,
+      QUEUE_COMPLETED_RETENTION_COUNT: 10_000,
+      QUEUE_FAILED_RETENTION_AGE_SECONDS: 604_800,
+      QUEUE_FAILED_RETENTION_COUNT: 20_000,
+      SHUTDOWN_TIMEOUT_MS: 30_000,
       QUEUE_ORCHESTRATION_TIMEOUT_MS: 30_000,
       QUEUE_SOURCE_FETCH_TIMEOUT_MS: 30_000,
       QUEUE_CONTENT_EXTRACTION_TIMEOUT_MS: 60_000,
@@ -36,6 +49,12 @@ describe("loadEnvironment", () => {
       EXTRACTION_PLAYWRIGHT_ENABLED: true,
       EXTRACTION_USER_AGENT:
         "SignalForgeBot/0.1 (controlled public web research; respects robots.txt)",
+      LLM_BASE_URL: "https://api.openai.com/v1",
+      LLM_MODEL: "gpt-4.1-mini",
+      LLM_TIMEOUT_MS: 30_000,
+      LLM_MAX_OUTPUT_TOKENS: 2_000,
+      LLM_MAX_CHUNK_CHARS: 12_000,
+      LLM_MAX_CHUNKS: 25,
       LOG_LEVEL: "info",
       DATABASE_URL: "postgresql://signalforge:password@localhost:5432/db",
       REDIS_URL: "redis://localhost:6379",
@@ -62,5 +81,17 @@ describe("loadEnvironment", () => {
       expect((error as Error).message).toContain("DATABASE_URL");
       expect((error as Error).message).not.toContain(invalidDatabaseUrl);
     }
+  });
+
+  it("rejects a worker readiness window that exceeds heartbeat TTL", () => {
+    expect(() =>
+      loadEnvironment({
+        DATABASE_URL: "postgresql://signalforge:password@localhost:5432/db",
+        REDIS_URL: "redis://localhost:6379",
+        WORKER_HEARTBEAT_INTERVAL_MS: "10000",
+        WORKER_HEARTBEAT_TTL_MS: "20000",
+        READINESS_WORKER_MAX_AGE_MS: "20000",
+      }),
+    ).toThrow(EnvironmentValidationError);
   });
 });

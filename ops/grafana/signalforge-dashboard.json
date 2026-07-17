@@ -1,0 +1,61 @@
+{
+  "title": "SignalForge operations",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "API request rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(signalforge_api_requests_total[5m]))",
+          "legendFormat": "requests/s"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Queue depth",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (queue_name, state) (signalforge_queue_depth)",
+          "legendFormat": "{{queue_name}} {{state}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "LLM cost",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (model) (increase(signalforge_llm_estimated_cost_usd_total[1h]))",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Fetch and extraction failures",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (error_code) (rate(signalforge_fetch_total{status=\"failure\"}[5m]))",
+          "legendFormat": "fetch {{error_code}}"
+        },
+        {
+          "expr": "sum by (error_code) (rate(signalforge_extraction_total{status!=\"success\"}[5m]))",
+          "legendFormat": "extraction {{error_code}}"
+        }
+      ]
+    }
+  ]
+}

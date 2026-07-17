@@ -65,5 +65,17 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high
+
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile -t signalforge-api:ci .
+
+      - name: Build worker image
+        run: docker build -f apps/worker/Dockerfile -t signalforge-worker:ci .
+
+      - name: Build web image
+        run: docker build -f apps/web/Dockerfile -t signalforge-web:ci .
+
       - name: Validate Docker Compose
         run: docker compose config --quiet

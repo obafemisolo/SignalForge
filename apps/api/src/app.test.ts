@@ -73,7 +73,7 @@ function fakeResearchJobs(): ResearchJobsApi {
 }
 
 const ready: ReadinessProbe = {
-  check: vi.fn(async () => ({ database: true, redis: true })),
+  check: vi.fn(async () => ({ database: true, redis: true, worker: true })),
 };
 
 const applications: Awaited<ReturnType<typeof buildApi>>[] = [];
@@ -131,6 +131,13 @@ describe("research job API", () => {
       {
         ...validBody,
         schema: { type: "signal", fields: ["company", "company"] },
+      },
+    ],
+    [
+      "unsupported extraction schema",
+      {
+        ...validBody,
+        schema: { type: "arbitraryRecord", fields: ["name"] },
       },
     ],
   ])("returns 400 for %s", async (_name, payload) => {
@@ -317,9 +324,23 @@ describe("health and documentation", () => {
     expect(readiness.statusCode).toBe(200);
   });
 
+  it("exposes Prometheus metrics and request identifiers", async () => {
+    const app = await makeApp();
+    const response = await app.inject({ method: "GET", url: "/metrics" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/plain");
+    expect(response.body).toContain("signalforge_api_requests_total");
+    expect(response.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/u);
+  });
+
   it("returns 503 when a readiness dependency is unavailable", async () => {
     const app = await makeApp(fakeResearchJobs(), {
-      check: vi.fn(async () => ({ database: true, redis: false })),
+      check: vi.fn(async () => ({
+        database: true,
+        redis: false,
+        worker: false,
+      })),
     });
     const response = await app.inject({
       method: "GET",
@@ -327,6 +348,23 @@ describe("health and documentation", () => {
     });
 
     expect(response.statusCode).toBe(503);
+  });
+
+  it("returns 503 when the worker heartbeat is stale", async () => {
+    const app = await makeApp(fakeResearchJobs(), {
+      check: vi.fn(async () => ({
+        database: true,
+        redis: true,
+        worker: false,
+      })),
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: "/health/ready",
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().data.checks.worker).toBe(false);
   });
 
   it("publishes OpenAPI documentation for every required route", async () => {
@@ -341,6 +379,7 @@ describe("health and documentation", () => {
         "/api/v1/research-jobs/{jobId}/retry",
         "/health/live",
         "/health/ready",
+        "/metrics",
       ]),
     );
     expect(

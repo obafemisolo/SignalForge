@@ -19,6 +19,11 @@ import {
   resultItemSchema,
   resultsPaginationQuerySchema,
 } from "@signalforge/schemas";
+import {
+  createMetrics,
+  type SignalForgeMetrics,
+} from "@signalforge/observability";
+import type { QueueDepthSnapshot } from "@signalforge/queue";
 import Fastify, {
   type FastifyBaseLogger,
   type FastifyInstance,
@@ -51,6 +56,8 @@ export interface BuildApiOptions {
   readiness: ReadinessProbe;
   logger?: boolean | FastifyBaseLogger;
   rateLimitRedis?: Redis;
+  metrics?: SignalForgeMetrics;
+  queueDepths?: () => Promise<QueueDepthSnapshot[]>;
 }
 
 const defaultConfig: ApiConfiguration = {
@@ -68,6 +75,12 @@ export async function buildApi(
   },
 ): Promise<FastifyInstance> {
   const config = { ...defaultConfig, ...options.config };
+  const metrics =
+    options.metrics ??
+    createMetrics({
+      service: "@signalforge/api",
+      collectProcessMetrics: config.nodeEnv !== "test",
+    });
   const app = Fastify({
     bodyLimit: config.bodyLimitBytes,
     genReqId: () => randomUUID(),
@@ -108,10 +121,34 @@ export async function buildApi(
   });
 
   app.addHook("onRequest", async (request, reply) => {
+    request.metricsStart = process.hrtime.bigint();
     void reply.header("x-request-id", request.id);
+  });
+  app.addHook("onResponse", async (request, reply) => {
+    const startedAt = request.metricsStart;
+    const durationMs =
+      startedAt === undefined
+        ? 0
+        : Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    metrics.observeApiRequest(
+      request.method,
+      request.routeOptions.url ?? "unknown",
+      reply.statusCode,
+      durationMs,
+    );
+    request.log.info(
+      {
+        requestId: request.id,
+        durationMs,
+        statusCode: reply.statusCode,
+        route: request.routeOptions.url ?? "unknown",
+      },
+      "Request completed",
+    );
   });
 
   registerHealthRoutes(app, options.readiness);
+  registerMetricsRoute(app, metrics, options.queueDepths);
   registerResearchJobRoutes(app, options.researchJobs, config);
 
   app.setNotFoundHandler(async (request, reply) => {
@@ -122,7 +159,14 @@ export async function buildApi(
   });
 
   app.setErrorHandler(async (error, request, reply) => {
-    request.log.error({ err: error }, "Request failed");
+    request.log.error(
+      {
+        err: error,
+        requestId: request.id,
+        errorCode: apiErrorCode(error),
+      },
+      "Request failed",
+    );
 
     if (error instanceof ZodError) {
       reply.status(400).send({
@@ -214,6 +258,64 @@ export async function buildApi(
   return app;
 }
 
+declare module "fastify" {
+  interface FastifyRequest {
+    metricsStart?: bigint;
+  }
+}
+
+function registerMetricsRoute(
+  app: FastifyInstance,
+  metrics: SignalForgeMetrics,
+  queueDepths?: () => Promise<QueueDepthSnapshot[]>,
+): void {
+  app.get(
+    "/metrics",
+    {
+      schema: {
+        tags: ["health"],
+        summary: "Prometheus metrics",
+      },
+    },
+    async (_request, reply) => {
+      if (queueDepths !== undefined) {
+        try {
+          const snapshots = await queueDepths();
+          for (const snapshot of snapshots) {
+            metrics.setQueueDepth(
+              snapshot.queueName,
+              "waiting",
+              snapshot.waiting,
+            );
+            metrics.setQueueDepth(
+              snapshot.queueName,
+              "active",
+              snapshot.active,
+            );
+            metrics.setQueueDepth(
+              snapshot.queueName,
+              "delayed",
+              snapshot.delayed,
+            );
+            metrics.setQueueDepth(
+              snapshot.queueName,
+              "failed",
+              snapshot.failed,
+            );
+          }
+        } catch (error: unknown) {
+          reply.log.warn(
+            { err: error, errorCode: "QUEUE_DEPTH_UNAVAILABLE" },
+            "Queue depth collection failed",
+          );
+        }
+      }
+      reply.type(metrics.contentType);
+      return metrics.render();
+    },
+  );
+}
+
 function registerHealthRoutes(
   app: FastifyInstance,
   readiness: ReadinessProbe,
@@ -245,12 +347,12 @@ function registerHealthRoutes(
     {
       schema: {
         tags: ["health"],
-        summary: "Database and Redis readiness probe",
+        summary: "Database, Redis, and worker readiness probe",
       },
     },
     async (request, reply) => {
       const checks = await readiness.check();
-      const ready = checks.database && checks.redis;
+      const ready = checks.database && checks.redis && checks.worker;
       reply.status(ready ? 200 : 503);
       return {
         data: { status: ready ? "ready" : "not_ready", checks },
@@ -301,6 +403,10 @@ function registerResearchJobRoutes(
         body,
         headers["idempotency-key"],
         request.id,
+      );
+      request.log.info(
+        { requestId: request.id, jobId: result.id },
+        "Research job accepted",
       );
 
       reply.status(202);
@@ -395,6 +501,10 @@ function registerResearchJobRoutes(
     async (request, reply) => {
       const { jobId } = researchJobParamsSchema.parse(request.params);
       const result = await researchJobs.retryFailedSources(jobId, request.id);
+      request.log.info(
+        { requestId: request.id, jobId, retry: true },
+        "Research job retry accepted",
+      );
       reply.status(202);
       return { data: result, requestId: request.id };
     },
@@ -419,4 +529,23 @@ function sendError(
     error: { code, message },
     requestId,
   });
+}
+
+function apiErrorCode(error: unknown): string {
+  if (error instanceof ZodError) {
+    return "VALIDATION_ERROR";
+  }
+  if (error instanceof PublicUrlError) {
+    return "INVALID_SOURCE_URL";
+  }
+  if (error instanceof EntityNotFoundError) {
+    return "RESEARCH_JOB_NOT_FOUND";
+  }
+  if (error instanceof PersistenceConflictError) {
+    return "PERSISTENCE_CONFLICT";
+  }
+  if (error instanceof PersistenceValidationError) {
+    return "VALIDATION_ERROR";
+  }
+  return "INTERNAL_ERROR";
 }

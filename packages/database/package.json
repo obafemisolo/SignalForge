@@ -23,6 +23,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
+    "@signalforge/record-processing": "workspace:*",
     "@signalforge/schemas": "workspace:*",
     "ajv": "^8.17.1",
     "pg": "^8.16.3"

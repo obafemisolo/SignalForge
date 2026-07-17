@@ -1,4 +1,5 @@
 coverage
+.next
 dist
 node_modules
 packages/database/src/generated

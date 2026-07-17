@@ -77,6 +77,12 @@ model SourceDocument {
   fetchStatus       SourceFetchStatus      @default(PENDING)
   fetchMode         SourceFetchMode?
   fetchDurationMs   Int?
+  llmProvider       String?                @db.VarChar(100)
+  llmModel          String?                @db.VarChar(200)
+  llmUsage          Json?
+  llmMetadata       Json?
+  llmProcessedAt    DateTime?              @db.Timestamptz(3)
+  recordDuplicatesRemoved Int              @default(0)
   processingStatus  SourceProcessingStatus @default(PENDING)
   processingAttempt Int                    @default(0)
   httpStatus        Int?                   @db.SmallInt
@@ -103,17 +109,24 @@ model ExtractedRecord {
   sourceDocumentId String         @db.Uuid
   recordType       String         @db.VarChar(100)
   structuredData   Json
+  normalizedData   Json           @default("{}")
   evidence         Json
+  sourceAttributions Json         @default("[]")
   confidenceScore  Float
   relevanceScore   Float
+  scoreExplanation Json           @default("{}")
   deduplicationKey String         @db.VarChar(256)
+  reviewRequired   Boolean        @default(false)
+  conflictDetails  Json?
   createdAt        DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
   researchJob      ResearchJob    @relation(fields: [researchJobId], references: [id], onDelete: Cascade)
   sourceDocument   SourceDocument @relation(fields: [sourceDocumentId, researchJobId], references: [id, researchJobId], onDelete: Cascade)
 
+  @@unique([sourceDocumentId, deduplicationKey])
   @@index([researchJobId, deduplicationKey])
   @@index([researchJobId, relevanceScore(sort: Desc)])
+  @@index([researchJobId, reviewRequired, relevanceScore(sort: Desc)])
   @@index([sourceDocumentId])
   @@map("extracted_records")
 }

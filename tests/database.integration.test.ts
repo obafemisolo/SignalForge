@@ -251,6 +251,98 @@ describeWithDatabase("database repositories", () => {
     ).rejects.toBeInstanceOf(PersistenceConflictError);
   });
 
+  it("atomically replaces a source generation and stores LLM usage metadata", async () => {
+    const created = await repositories.researchJobs.createWithSources(
+      {
+        query: "Research SignalForge",
+        requestedSources: ["https://example.com/research"],
+        extractionSchema,
+      },
+      [
+        {
+          sourceUrl: "https://example.com/research",
+          normalizedUrl: "https://example.com/research",
+          domain: "example.com",
+        },
+      ],
+    );
+    const orchestration = await repositories.pipeline.startOrchestration(
+      created.job.id,
+    );
+    const source = orchestration.sources[0];
+    if (source === undefined) {
+      throw new Error("Expected an orchestration source");
+    }
+    const rawContent = "SignalForge is a public web-research pipeline.";
+    await repositories.pipeline.markFetchStarted(
+      source.id,
+      source.processingAttempt,
+    );
+    await repositories.pipeline.markFetchSucceeded(
+      source.id,
+      source.processingAttempt,
+      {
+        rawContent,
+        contentHash: createHash("sha256").update(rawContent).digest("hex"),
+        httpStatus: 200,
+      },
+    );
+    await repositories.pipeline.markExtractionSucceeded(
+      source.id,
+      source.processingAttempt,
+    );
+
+    const input = {
+      researchJobId: created.job.id,
+      sourceDocumentId: source.id,
+      recordType: "project",
+      structuredData: {
+        name: "SignalForge",
+        summary: "A public web-research pipeline.",
+      },
+      evidence: [{ quote: "public web-research pipeline" }],
+      confidenceScore: 0.9,
+      relevanceScore: 0.9,
+      deduplicationKey: "project:signalforge",
+    };
+    await repositories.extractedRecords.replaceValidatedForSource(
+      created.job.id,
+      source.id,
+      source.processingAttempt,
+      [input],
+      {
+        provider: "fake",
+        model: "test-model",
+        usage: { inputTokens: 100, outputTokens: 20 },
+        metadata: { chunkCount: 1, repairedChunks: 0 },
+      },
+    );
+    await repositories.extractedRecords.replaceValidatedForSource(
+      created.job.id,
+      source.id,
+      source.processingAttempt,
+      [input],
+      {
+        provider: "fake",
+        model: "test-model",
+        usage: { inputTokens: 110, outputTokens: 25 },
+        metadata: { chunkCount: 1, repairedChunks: 1 },
+      },
+    );
+
+    await expect(prisma.extractedRecord.count()).resolves.toBe(1);
+    const persistedSource = await prisma.sourceDocument.findUniqueOrThrow({
+      where: { id: source.id },
+    });
+    expect(persistedSource).toMatchObject({
+      llmProvider: "fake",
+      llmModel: "test-model",
+      llmUsage: { inputTokens: 110, outputTokens: 25 },
+      llmMetadata: { chunkCount: 1, repairedChunks: 1 },
+    });
+    expect(persistedSource.llmProcessedAt).toBeInstanceOf(Date);
+  });
+
   it("appends job events and updates bounded progress", async () => {
     const researchJob = await repositories.researchJobs.create({
       query: "Track this job",

@@ -1,0 +1,52 @@
+{
+  "info": {
+    "name": "SignalForge API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "jobId", "value": "00000000-0000-4000-8000-000000000001" }
+  ],
+  "item": [
+    {
+      "name": "Create research job",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "content-type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "postman-demo-001" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"Find Nigerian fintech companies currently hiring backend engineers\",\n  \"sources\": [\"https://example.com/jobs\"],\n  \"schema\": {\"type\": \"companyHiringSignal\", \"fields\": [\"company\", \"website\", \"role\", \"location\", \"signal\", \"sourceUrl\", \"evidence\"]}\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/research-jobs"
+      }
+    },
+    {
+      "name": "Get job status",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/research-jobs/{{jobId}}"
+      }
+    },
+    {
+      "name": "Get results",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/research-jobs/{{jobId}}/results?page=1&limit=20"
+      }
+    },
+    {
+      "name": "Retry failed sources",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/research-jobs/{{jobId}}/retry"
+      }
+    },
+    {
+      "name": "Readiness",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health/ready" }
+    }
+  ]
+}

@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signalforge_dev}
       POSTGRES_DB: ${POSTGRES_DB:-signalforge}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -27,7 +27,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signalforge_dev}
       POSTGRES_DB: signalforge_test
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d signalforge_test"]
       interval: 5s
@@ -39,7 +39,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -54,7 +54,7 @@ services:
     image: redis:7-alpine
     profiles: ["test"]
     ports:
-      - "6380:6379"
+      - "127.0.0.1:6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -63,6 +63,116 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      SIGNALFORGE_API_URL: ${SIGNALFORGE_API_URL:-http://api:3000}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3001}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-signalforge}:${POSTGRES_PASSWORD:-signalforge_dev}@postgres:5432/${POSTGRES_DB:-signalforge}
+      REDIS_URL: redis://redis:6379
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    profiles: ["migrate"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-signalforge}:${POSTGRES_PASSWORD:-signalforge_dev}@postgres:5432/${POSTGRES_DB:-signalforge}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-signalforge}:${POSTGRES_PASSWORD:-signalforge_dev}@postgres:5432/${POSTGRES_DB:-signalforge}
+      REDIS_URL: redis://redis:6379
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_METRICS_HOST: 0.0.0.0
+      WORKER_METRICS_PORT: 9464
+    ports:
+      - "127.0.0.1:${WORKER_METRICS_PORT:-9464}:9464"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-7d}"
+    volumes:
+      - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/signalforge-dashboard.json:/var/lib/grafana/dashboards/signalforge-dashboard.json:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3002}:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   redis-data:
+  prometheus-data:
+  grafana-data:

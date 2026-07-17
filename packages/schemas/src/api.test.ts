@@ -11,7 +11,18 @@ describe("API schemas", () => {
     const result = createResearchJobRequestSchema(2).parse({
       query: "  Find hiring signals  ",
       sources: ["https://example.com/jobs"],
-      schema: { type: "hiringSignal", fields: ["company", "role"] },
+      schema: {
+        type: "companyHiringSignal",
+        fields: [
+          "company",
+          "website",
+          "role",
+          "location",
+          "signal",
+          "sourceUrl",
+          "evidence",
+        ],
+      },
     });
 
     expect(result.query).toBe("Find hiring signals");
@@ -21,7 +32,18 @@ describe("API schemas", () => {
     const result = createResearchJobRequestSchema(1).safeParse({
       query: "Find hiring signals",
       sources: ["https://example.com/a", "https://example.com/b"],
-      schema: { type: "hiringSignal", fields: ["company"] },
+      schema: {
+        type: "companyHiringSignal",
+        fields: [
+          "company",
+          "website",
+          "role",
+          "location",
+          "signal",
+          "sourceUrl",
+          "evidence",
+        ],
+      },
     });
 
     expect(result.success).toBe(false);

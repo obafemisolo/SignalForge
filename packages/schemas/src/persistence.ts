@@ -70,16 +70,77 @@ export const evidenceItemSchema = z
     "startOffset and endOffset must be provided together and form a valid range",
   );
 
+export const sourceAttributionSchema = z
+  .object({
+    sourceDocumentId: persistenceIdSchema,
+    sourceUrl: publicHttpUrlSchema,
+    evidence: z.array(z.string().trim().min(1).max(4_000)).min(1).max(50),
+    publishedAt: z.string().datetime().nullable(),
+    credibilityScore: z.number().finite().min(0).max(1).nullable(),
+  })
+  .strict();
+
+export const recordConflictSchema = z
+  .object({
+    type: z.enum([
+      "DOMAIN_MISMATCH",
+      "LOCATION_MISMATCH",
+      "SIGNAL_POLARITY_MISMATCH",
+    ]),
+    fields: z.array(z.string().trim().min(1).max(100)).min(1).max(10),
+    message: z.string().trim().min(1).max(1_000),
+    otherDeduplicationKey: z.string().trim().min(1).max(256),
+  })
+  .strict();
+
+const scoreComponentSchema = z
+  .object({
+    score: z.number().finite().min(0).max(1),
+    weight: z.number().finite().min(0).max(1),
+    weightedScore: z.number().finite().min(0).max(1),
+    reason: z.string().trim().min(1).max(1_000),
+  })
+  .strict();
+
+export const relevanceScoreExplanationSchema = z.union([
+  z
+    .object({
+      version: z.literal("v1"),
+      total: z.number().finite().min(0).max(1),
+      components: z
+        .object({
+          queryKeywordOverlap: scoreComponentSchema,
+          requiredFieldCompleteness: scoreComponentSchema,
+          confidence: scoreComponentSchema,
+          sourceFreshness: scoreComponentSchema,
+          sourceCredibility: scoreComponentSchema,
+          evidenceDirectness: scoreComponentSchema,
+        })
+        .strict(),
+    })
+    .strict(),
+  z.object({}).strict(),
+]);
+
 export const extractedRecordCreateInputSchema = z
   .object({
     researchJobId: persistenceIdSchema,
     sourceDocumentId: persistenceIdSchema,
     recordType: z.string().trim().min(1).max(100),
     structuredData: jsonObjectSchema,
+    normalizedData: jsonObjectSchema.default({}),
     evidence: z.array(evidenceItemSchema).min(1).max(50),
+    sourceAttributions: z
+      .array(sourceAttributionSchema)
+      .min(1)
+      .max(100)
+      .default([]),
     confidenceScore: z.number().finite().min(0).max(1),
     relevanceScore: z.number().finite().min(0).max(1),
+    scoreExplanation: relevanceScoreExplanationSchema.default({}),
     deduplicationKey: z.string().trim().min(1).max(256),
+    reviewRequired: z.boolean().default(false),
+    conflictDetails: z.array(recordConflictSchema).max(100).default([]),
   })
   .strict();
 
@@ -110,6 +171,8 @@ export const sourceDocumentFailureInputSchema = z
   .object({
     fetchStatus: z.enum(["FAILED", "BLOCKED", "SKIPPED"]),
     httpStatus: z.number().int().min(100).max(599).optional(),
+    fetchDurationMs: z.number().int().nonnegative().optional(),
+    fetchMode: z.enum(["HTTP", "PLAYWRIGHT"]).optional(),
     fetchedAt: z.date().default(() => new Date()),
     errorCode: z.string().trim().min(1).max(100),
     errorMessage: z.string().trim().min(1).max(10_000),
@@ -128,7 +191,10 @@ export const researchJobProgressInputSchema = z
   .strict();
 
 export type EvidenceItem = z.infer<typeof evidenceItemSchema>;
-export type ExtractedRecordCreateInput = z.infer<
+export type ExtractedRecordCreateInput = z.input<
+  typeof extractedRecordCreateInputSchema
+>;
+export type ValidatedExtractedRecordCreateInput = z.output<
   typeof extractedRecordCreateInputSchema
 >;
 export type JobEventCreateInput = z.infer<typeof jobEventCreateInputSchema>;

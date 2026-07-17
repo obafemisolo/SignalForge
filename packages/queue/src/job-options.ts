@@ -11,15 +11,36 @@ export const QUEUE_ATTEMPTS: Readonly<Record<PipelineQueueName, number>> = {
   [QUEUE_NAMES.deadLetter]: 1,
 };
 
+export interface QueueRetention {
+  completedAgeSeconds: number;
+  completedCount: number;
+  failedAgeSeconds: number;
+  failedCount: number;
+}
+
+export const defaultQueueRetention: QueueRetention = {
+  completedAgeSeconds: 86_400,
+  completedCount: 10_000,
+  failedAgeSeconds: 604_800,
+  failedCount: 20_000,
+};
+
 export function getJobOptions(
   queueName: PipelineQueueName,
   jobId: string,
+  retention: QueueRetention = defaultQueueRetention,
 ): JobsOptions {
   return {
     jobId,
     attempts: QUEUE_ATTEMPTS[queueName],
     backoff: { type: "exponential", delay: 1_000 },
-    removeOnComplete: { age: 86_400, count: 10_000 },
-    removeOnFail: { age: 604_800, count: 20_000 },
+    removeOnComplete: {
+      age: retention.completedAgeSeconds,
+      count: retention.completedCount,
+    },
+    removeOnFail: {
+      age: retention.failedAgeSeconds,
+      count: retention.failedCount,
+    },
   };
 }

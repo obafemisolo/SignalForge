@@ -1,6 +1,7 @@
 import {
   persistenceIdSchema,
   sourceDocumentSuccessInputSchema,
+  type JsonObject,
   type SourceDocumentSuccessInput,
 } from "@signalforge/schemas";
 
@@ -41,6 +42,7 @@ export interface PipelineFailureInput {
   fetchDurationMs?: number;
   fetchMode?: "HTTP" | "PLAYWRIGHT";
   fetchStatus?: "FAILED" | "BLOCKED" | "SKIPPED";
+  errorDetails?: JsonObject;
 }
 
 export class PipelineRepository {
@@ -143,7 +145,9 @@ export class PipelineRepository {
         rawContent: validated.rawContent,
         contentHash: validated.contentHash,
         httpStatus: validated.httpStatus,
-        canonicalUrl: validated.canonicalUrl,
+        ...(validated.canonicalUrl === undefined
+          ? {}
+          : { canonicalUrl: validated.canonicalUrl }),
         metadata: validated.metadata as Prisma.InputJsonObject,
         outboundLinks: validated.outboundLinks,
         fetchDurationMs: validated.fetchDurationMs,
@@ -253,7 +257,9 @@ export class PipelineRepository {
           ...(input.fetchDurationMs === undefined
             ? {}
             : { fetchDurationMs: input.fetchDurationMs }),
-          ...(input.fetchMode === undefined ? {} : { fetchMode: input.fetchMode }),
+          ...(input.fetchMode === undefined
+            ? {}
+            : { fetchMode: input.fetchMode }),
           fetchedAt: new Date(),
           errorCode: input.errorCode.slice(0, 100),
           errorMessage: input.errorMessage.slice(0, 10_000),
@@ -273,6 +279,9 @@ export class PipelineRepository {
             queueName: input.queueName,
             jobId: input.jobId,
             errorCode: input.errorCode,
+            ...(input.errorDetails === undefined
+              ? {}
+              : { details: input.errorDetails }),
           },
         },
       });
@@ -284,9 +293,9 @@ export class PipelineRepository {
     researchJobId: string,
     jobId: string,
     errorMessage: string,
-  ): Promise<void> {
+  ): Promise<ResearchProgressCalculation> {
     const validatedId = persistenceIdSchema.parse(researchJobId);
-    await this.prisma.$transaction(async (transaction) => {
+    return this.prisma.$transaction(async (transaction) => {
       await this.lockResearchJob(transaction, validatedId);
       await transaction.sourceDocument.updateMany({
         where: {
@@ -308,7 +317,7 @@ export class PipelineRepository {
           payload: { jobId },
         },
       });
-      await this.recalculateProgress(transaction, validatedId);
+      return this.recalculateProgress(transaction, validatedId);
     });
   }
 

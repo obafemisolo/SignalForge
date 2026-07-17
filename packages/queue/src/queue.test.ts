@@ -6,6 +6,7 @@ import {
   contentExtractionJobId,
   getJobOptions,
   recordProcessingJobId,
+  researchOrchestrationJobDataSchema,
   sourceFetchJobId,
   sourceStageJobDataSchema,
   type SourceStageJobData,
@@ -41,6 +42,18 @@ describe("queue contracts", () => {
     ).toBe(false);
   });
 
+  it("bounds retry source IDs to the API source limit", () => {
+    expect(
+      researchOrchestrationJobDataSchema.safeParse({
+        ...sourceJob,
+        sourceDocumentIds: Array.from(
+          { length: 101 },
+          () => sourceJob.sourceDocumentId,
+        ),
+      }).success,
+    ).toBe(false);
+  });
+
   it("uses deterministic IDs and changes them only for a new pipeline attempt", () => {
     expect(sourceFetchJobId(sourceJob)).toBe(sourceFetchJobId(sourceJob));
     expect(contentExtractionJobId(sourceJob)).toContain(
@@ -60,5 +73,21 @@ describe("queue contracts", () => {
     expect(options.attempts).toBe(QUEUE_ATTEMPTS["source-fetch"]);
     expect(options.attempts).toBe(4);
     expect(options.backoff).toEqual({ type: "exponential", delay: 1_000 });
+  });
+
+  it("applies configurable completed and failed job retention", () => {
+    const options = getJobOptions(
+      QUEUE_NAMES.sourceFetch,
+      sourceFetchJobId(sourceJob),
+      {
+        completedAgeSeconds: 60,
+        completedCount: 100,
+        failedAgeSeconds: 120,
+        failedCount: 200,
+      },
+    );
+
+    expect(options.removeOnComplete).toEqual({ age: 60, count: 100 });
+    expect(options.removeOnFail).toEqual({ age: 120, count: 200 });
   });
 });

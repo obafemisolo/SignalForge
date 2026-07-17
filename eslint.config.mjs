@@ -8,16 +8,18 @@ export default tseslint.config(
       "**/coverage/**",
       "**/dist/**",
       "**/node_modules/**",
+      "**/.next/**",
       "**/packages/database/src/generated/**",
       "**/playwright-report/**",
+      "apps/web/next-env.d.ts",
     ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["**/*.ts"],
+    files: ["**/*.ts", "**/*.tsx"],
     languageOptions: {
-      globals: globals.node,
+      globals: { ...globals.node, ...globals.browser },
     },
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",

@@ -6,12 +6,12 @@ import {
   type ResearchJobProgressInput,
 } from "@signalforge/schemas";
 
-import type {
-  ExtractedRecord,
+import {
   Prisma,
-  PrismaClient,
-  ResearchJob,
-  SourceDocument,
+  type ExtractedRecord,
+  type PrismaClient,
+  type ResearchJob,
+  type SourceDocument,
 } from "../generated/prisma/client.js";
 import {
   EntityNotFoundError,
@@ -261,6 +261,16 @@ export class ResearchJobRepository {
           errorMessage: null,
           rawContent: null,
           contentHash: null,
+          canonicalUrl: null,
+          metadata: Prisma.DbNull,
+          outboundLinks: [],
+          fetchDurationMs: null,
+          fetchMode: null,
+          llmProvider: null,
+          llmModel: null,
+          llmUsage: Prisma.DbNull,
+          llmMetadata: Prisma.DbNull,
+          llmProcessedAt: null,
         },
       });
 

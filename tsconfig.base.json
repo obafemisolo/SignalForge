@@ -2,10 +2,11 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
       "@signalforge/config": ["packages/config/src/index.ts"],
@@ -14,6 +15,9 @@
       "@signalforge/llm": ["packages/llm/src/index.ts"],
       "@signalforge/observability": ["packages/observability/src/index.ts"],
       "@signalforge/queue": ["packages/queue/src/index.ts"],
+      "@signalforge/record-processing": [
+        "packages/record-processing/src/index.ts"
+      ],
       "@signalforge/schemas": ["packages/schemas/src/index.ts"]
     },
     "strict": true,

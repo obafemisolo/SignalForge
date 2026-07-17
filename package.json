@@ -21,7 +21,7 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "typecheck": "pnpm db:generate && tsc --noEmit --project tsconfig.check.json",
+    "typecheck": "pnpm db:generate && tsc --noEmit --project tsconfig.check.json && pnpm --filter @signalforge/web typecheck",
     "test": "pnpm db:generate && vitest run",
     "test:integration": "pnpm db:generate && pnpm db:migrate:test && vitest run tests/database.integration.test.ts"
   },

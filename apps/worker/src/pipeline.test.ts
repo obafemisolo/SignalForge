@@ -34,7 +34,18 @@ function source(status: SourceDocument["processingStatus"]): SourceDocument {
     title: null,
     rawContent: status === "FETCHING" ? null : "Readable content",
     contentHash: null,
+    canonicalUrl: null,
+    metadata: null,
+    outboundLinks: [],
     fetchStatus: status === "FETCHING" ? "FETCHING" : "SUCCEEDED",
+    fetchMode: null,
+    fetchDurationMs: null,
+    llmProvider: null,
+    llmModel: null,
+    llmUsage: null,
+    llmMetadata: null,
+    llmProcessedAt: null,
+    recordDuplicatesRemoved: 0,
     processingStatus: status,
     processingAttempt: 0,
     httpStatus: null,
@@ -55,7 +66,13 @@ function store(current: SourceDocument): PipelineStore {
     markExtractionSucceeded: vi.fn(async () => true),
     completeSource: vi.fn(async () => null),
     failSource: vi.fn(async () => null),
-    failOrchestration: vi.fn(async () => undefined),
+    failOrchestration: vi.fn(async () => ({
+      successfulSources: 0,
+      failedSources: 1,
+      terminalSources: 1,
+      status: "FAILED" as const,
+      isTerminal: true,
+    })),
   };
 }
 
@@ -68,6 +85,8 @@ function publisher(): PipelineQueuePublisher {
     enqueueRecordProcessing: vi.fn(async () => undefined),
     enqueueDeadLetter: vi.fn(async () => undefined),
     checkHealth: vi.fn(async () => true),
+    checkWorkerHealth: vi.fn(async () => true),
+    getQueueDepths: vi.fn(async () => []),
     close: vi.fn(async () => undefined),
   };
 }
@@ -170,6 +189,39 @@ describe("pipeline retry and idempotency behavior", () => {
         queueName: "source-fetch",
         sourceDocumentId: data.sourceDocumentId,
         attemptsMade: 2,
+      }),
+    );
+  });
+
+  it("does not retry a classified permanent fetch failure", async () => {
+    const repository = store(source("FETCHING"));
+    const queues = publisher();
+    const error = Object.assign(new Error("robots.txt denied this URL"), {
+      code: "ROBOTS_DISALLOWED",
+      retryable: false,
+      fetchStatus: "SKIPPED" as const,
+      fetchMode: "HTTP" as const,
+      fetchDurationMs: 12,
+    });
+    const processor = new PipelineJobProcessor(
+      repository,
+      queues,
+      processors(async () => {
+        throw error;
+      }),
+      pino({ level: "silent" }),
+    );
+
+    await expect(
+      processor.processSourceFetch(fetchJob(0)),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(repository.failSource).toHaveBeenCalledWith(
+      data.sourceDocumentId,
+      0,
+      expect.objectContaining({
+        errorCode: "ROBOTS_DISALLOWED",
+        fetchStatus: "SKIPPED",
+        fetchDurationMs: 12,
       }),
     );
   });

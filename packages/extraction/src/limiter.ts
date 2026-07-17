@@ -3,6 +3,7 @@ interface DomainState {
   minimumDelayMs: number;
   nextStartAt: number;
   startBarrier: Promise<void>;
+  lastUsedAt: number;
 }
 
 export class RequestLimiter {
@@ -13,6 +14,7 @@ export class RequestLimiter {
     globalConcurrency: number,
     private readonly domainConcurrency: number,
     private readonly defaultDomainDelayMs: number,
+    private readonly maxTrackedDomains = 1_024,
   ) {
     this.globalSemaphore = new Semaphore(globalConcurrency);
   }
@@ -45,13 +47,24 @@ export class RequestLimiter {
     const key = domain.toLowerCase();
     const existing = this.domains.get(key);
     if (existing !== undefined) {
+      existing.lastUsedAt = Date.now();
       return existing;
+    }
+    if (this.domains.size >= this.maxTrackedDomains) {
+      const idle = [...this.domains.entries()]
+        .filter(([, state]) => state.semaphore.isIdle())
+        .sort(([, left], [, right]) => left.lastUsedAt - right.lastUsedAt)[0];
+      if (idle === undefined) {
+        throw new Error("Domain limiter capacity exhausted");
+      }
+      this.domains.delete(idle[0]);
     }
     const created: DomainState = {
       semaphore: new Semaphore(this.domainConcurrency),
       minimumDelayMs: this.defaultDomainDelayMs,
       nextStartAt: 0,
       startBarrier: Promise.resolve(),
+      lastUsedAt: Date.now(),
     };
     this.domains.set(key, created);
     return created;
@@ -81,6 +94,10 @@ class Semaphore {
   private readonly waiting: Array<() => void> = [];
 
   public constructor(private readonly capacity: number) {}
+
+  public isIdle(): boolean {
+    return this.active === 0 && this.waiting.length === 0;
+  }
 
   public async acquire(): Promise<() => void> {
     if (this.active >= this.capacity) {

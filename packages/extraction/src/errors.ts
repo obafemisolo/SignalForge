@@ -62,9 +62,7 @@ export class ExtractionError extends Error {
   ): ExtractionError {
     return new ExtractionError(this.code, this.message, {
       retryable: this.retryable,
-      ...(this.httpStatus === undefined
-        ? {}
-        : { httpStatus: this.httpStatus }),
+      ...(this.httpStatus === undefined ? {} : { httpStatus: this.httpStatus }),
       fetchDurationMs,
       fetchMode,
       fetchStatus: this.fetchStatus,

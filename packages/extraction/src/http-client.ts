@@ -3,11 +3,8 @@ import https from "node:https";
 import type { LookupFunction } from "node:net";
 
 import { ExtractionError, toExtractionError } from "./errors.js";
-import { RequestLimiter } from "./limiter.js";
-import {
-  normalizeSourceUrl,
-  resolvePublicAddresses,
-} from "./url-policy.js";
+import type { RequestLimiter } from "./limiter.js";
+import { normalizeSourceUrl, resolvePublicAddresses } from "./url-policy.js";
 import type { DnsResolver, ResolvedAddress } from "./types.js";
 
 export interface TransportRequest {
@@ -90,22 +87,25 @@ export class SafeHttpClient {
       while (true) {
         const normalizedUrl = normalizeSourceUrl(currentUrl);
         const url = new URL(normalizedUrl);
-        const addresses = await resolvePublicAddresses(
-          normalizedUrl,
-          this.resolver,
+        const addresses = await abortable(
+          resolvePublicAddresses(normalizedUrl, this.resolver),
+          controller.signal,
         );
-        const response = await this.limiter.schedule(url.hostname, () =>
-          this.transport.request({
-            url: normalizedUrl,
-            addresses,
-            headers: {
-              accept: "text/html,text/plain;q=0.9",
-              "accept-language": "en-US,en;q=0.8",
-              "user-agent": this.configuration.userAgent,
-            },
-            connectionTimeoutMs: this.configuration.connectionTimeoutMs,
-            signal: controller.signal,
-          }),
+        const response = await abortable(
+          this.limiter.schedule(url.hostname, () =>
+            this.transport.request({
+              url: normalizedUrl,
+              addresses,
+              headers: {
+                accept: "text/html,text/plain;q=0.9",
+                "accept-language": "en-US,en;q=0.8",
+                "user-agent": this.configuration.userAgent,
+              },
+              connectionTimeoutMs: this.configuration.connectionTimeoutMs,
+              signal: controller.signal,
+            }),
+          ),
+          controller.signal,
         );
 
         if (redirectStatuses.has(response.statusCode)) {
@@ -185,11 +185,17 @@ export class SafeHttpClient {
           throw bodyTooLarge(maxBodyBytes, response.statusCode);
         }
 
-        const body = await readLimitedBody(
-          response.body,
-          maxBodyBytes,
-          response.statusCode,
-        );
+        let body: Buffer;
+        try {
+          body = await readLimitedBody(
+            response.body,
+            maxBodyBytes,
+            response.statusCode,
+          );
+        } catch (error: unknown) {
+          response.discard();
+          throw error;
+        }
         return {
           requestedUrl,
           finalUrl: normalizedUrl,
@@ -215,6 +221,25 @@ export class SafeHttpClient {
     } finally {
       clearTimeout(timeout);
       options.signal.removeEventListener("abort", onAbort);
+    }
+  }
+}
+
+async function abortable<T>(
+  operation: Promise<T>,
+  signal: AbortSignal,
+): Promise<T> {
+  signal.throwIfAborted();
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+  try {
+    return await Promise.race([operation, aborted]);
+  } finally {
+    if (onAbort !== undefined) {
+      signal.removeEventListener("abort", onAbort);
     }
   }
 }

@@ -14,5 +14,8 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^3.25.64"
   }
 }

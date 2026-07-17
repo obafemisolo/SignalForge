@@ -1,1 +1,1 @@
-export const packageName = "@signalforge/schemas";
+export * from "./persistence.js";

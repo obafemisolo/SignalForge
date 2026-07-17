@@ -6,6 +6,16 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "moduleDetection": "force",
+    "baseUrl": ".",
+    "paths": {
+      "@signalforge/config": ["packages/config/src/index.ts"],
+      "@signalforge/database": ["packages/database/src/index.ts"],
+      "@signalforge/extraction": ["packages/extraction/src/index.ts"],
+      "@signalforge/llm": ["packages/llm/src/index.ts"],
+      "@signalforge/observability": ["packages/observability/src/index.ts"],
+      "@signalforge/queue": ["packages/queue/src/index.ts"],
+      "@signalforge/schemas": ["packages/schemas/src/index.ts"]
+    },
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,

@@ -6,9 +6,9 @@ permitted public web sources, extract readable content, convert it into
 schema-validated records, remove duplicates, score the results, and preserve
 source attribution and supporting evidence.
 
-This repository currently contains the Phase 1 monorepo foundation. Research,
-extraction, queue-processing, and LLM business logic are intentionally not
-implemented yet.
+This repository currently contains the monorepo foundation and Phase 2
+PostgreSQL persistence layer. Research orchestration, web extraction,
+queue-processing, and LLM provider logic are intentionally not implemented yet.
 
 ## Architecture
 
@@ -61,24 +61,32 @@ corepack prepare pnpm@10.12.1 --activate
    pnpm install
    ```
 
-3. Start PostgreSQL and Redis:
+3. Start PostgreSQL, the isolated test database, and Redis:
 
    ```bash
-   docker compose up -d
+   docker compose --profile test up -d
    ```
 
-4. Verify the workspace:
+4. Apply the development migration and seed one sample research job:
+
+   ```bash
+   pnpm db:migrate:deploy
+   pnpm db:seed
+   ```
+
+5. Verify the workspace:
 
    ```bash
    pnpm format:check
    pnpm lint
    pnpm typecheck
+   pnpm db:migrate:test
    pnpm test
    pnpm build
    docker compose config --quiet
    ```
 
-5. Start application development watchers:
+6. Start application development watchers:
 
    ```bash
    pnpm dev
@@ -87,6 +95,28 @@ corepack prepare pnpm@10.12.1 --activate
 The credentials in `.env.example` and `docker-compose.yml` are public,
 local-development defaults only. Replace them in deployed environments and never
 commit a populated `.env` file.
+
+## Database
+
+The Prisma schema and migrations live under `packages/database/prisma`.
+SignalForge uses UUID primary keys, PostgreSQL enums, JSONB for extraction
+schemas and structured records, and foreign keys with cascading cleanup. The
+repository layer in `packages/database/src/repositories` is the application
+boundary for persistence.
+
+Use these commands for database development:
+
+- `pnpm db:generate` regenerates the Prisma client.
+- `pnpm db:migrate` creates and applies a development migration.
+- `pnpm db:migrate:deploy` applies committed migrations to the development
+  database.
+- `pnpm db:migrate:test` applies committed migrations to `TEST_DATABASE_URL`.
+- `pnpm db:seed` idempotently inserts the sample research job.
+- `pnpm test:integration` migrates the test database and runs repository
+  integration tests.
+
+Do not point `TEST_DATABASE_URL` at a development or production database. The
+integration suite deletes research jobs between scenarios.
 
 ## Workspace commands
 

@@ -12,16 +12,23 @@
   "packageManager": "pnpm@10.12.1",
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
-    "build": "pnpm --recursive --if-present run build",
+    "build": "pnpm db:generate && pnpm --recursive --if-present run build",
+    "db:generate": "pnpm --filter @signalforge/database db:generate",
+    "db:migrate": "pnpm --filter @signalforge/database db:migrate",
+    "db:migrate:deploy": "pnpm --filter @signalforge/database db:migrate:deploy",
+    "db:migrate:test": "pnpm --filter @signalforge/database db:migrate:test",
+    "db:seed": "pnpm --filter @signalforge/database db:seed",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "typecheck": "tsc --noEmit --project tsconfig.check.json",
-    "test": "vitest run"
+    "typecheck": "pnpm db:generate && tsc --noEmit --project tsconfig.check.json",
+    "test": "pnpm db:generate && vitest run",
+    "test:integration": "pnpm db:generate && pnpm db:migrate:test && vitest run tests/database.integration.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@types/node": "^22.15.30",
+    "dotenv": "^17.2.3",
     "eslint": "^9.28.0",
     "globals": "^16.2.0",
     "prettier": "^3.5.3",

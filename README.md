@@ -64,7 +64,7 @@ If this is your first visit, choose the path that matches your goal:
 ### 1. Clone and install
 
 ```bash
-git clone <your-fork-or-repository-url>
+git clone https://github.com/obafemisolo/SignalForge
 cd SignalForge
 corepack enable
 corepack prepare pnpm@10.12.1 --activate

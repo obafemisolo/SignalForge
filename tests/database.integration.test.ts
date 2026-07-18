@@ -167,6 +167,15 @@ describeWithDatabase("database repositories", () => {
       sourceDocumentId: source.id,
       recordType: "project",
       evidence: [{ quote: "public web-research pipeline" }],
+      sourceAttributions: [
+        {
+          sourceDocumentId: source.id,
+          sourceUrl: "https://example.com/research",
+          evidence: ["public web-research pipeline"],
+          publishedAt: null,
+          credibilityScore: null,
+        },
+      ],
       confidenceScore: 0.9,
       relevanceScore: 0.95,
       deduplicationKey: "project:signalforge",
@@ -244,6 +253,15 @@ describeWithDatabase("database repositories", () => {
           summary: "Cross-job record",
         },
         evidence: [{ quote: "Evidence for the first job." }],
+        sourceAttributions: [
+          {
+            sourceDocumentId: source.id,
+            sourceUrl: "https://example.com/first",
+            evidence: ["Evidence for the first job."],
+            publishedAt: null,
+            credibilityScore: null,
+          },
+        ],
         confidenceScore: 0.8,
         relevanceScore: 0.8,
         deduplicationKey: "cross-job",
@@ -301,6 +319,15 @@ describeWithDatabase("database repositories", () => {
         summary: "A public web-research pipeline.",
       },
       evidence: [{ quote: "public web-research pipeline" }],
+      sourceAttributions: [
+        {
+          sourceDocumentId: source.id,
+          sourceUrl: "https://example.com/research",
+          evidence: ["public web-research pipeline"],
+          publishedAt: null,
+          credibilityScore: null,
+        },
+      ],
       confidenceScore: 0.9,
       relevanceScore: 0.9,
       deduplicationKey: "project:signalforge",

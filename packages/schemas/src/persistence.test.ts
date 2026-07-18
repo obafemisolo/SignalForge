@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   evidenceItemSchema,
+  extractedRecordCreateInputSchema,
   researchJobCreateInputSchema,
 } from "./persistence.js";
 
@@ -44,5 +45,27 @@ describe("persistence schemas", () => {
         endOffset: 10,
       }),
     ).toThrow("startOffset and endOffset must be provided together");
+  });
+
+  it("requires at least one source attribution for an extracted record", () => {
+    const result = extractedRecordCreateInputSchema.safeParse({
+      researchJobId: "00000000-0000-4000-8000-000000000001",
+      sourceDocumentId: "00000000-0000-4000-8000-000000000002",
+      recordType: "project",
+      structuredData: { name: "SignalForge" },
+      evidence: [{ quote: "SignalForge" }],
+      confidenceScore: 0.9,
+      relevanceScore: 0.9,
+      deduplicationKey: "project:signalforge",
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: ["sourceAttributions"] }),
+        ]),
+      );
+    }
   });
 });

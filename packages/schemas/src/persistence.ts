@@ -130,11 +130,7 @@ export const extractedRecordCreateInputSchema = z
     structuredData: jsonObjectSchema,
     normalizedData: jsonObjectSchema.default({}),
     evidence: z.array(evidenceItemSchema).min(1).max(50),
-    sourceAttributions: z
-      .array(sourceAttributionSchema)
-      .min(1)
-      .max(100)
-      .default([]),
+    sourceAttributions: z.array(sourceAttributionSchema).min(1).max(100),
     confidenceScore: z.number().finite().min(0).max(1),
     relevanceScore: z.number().finite().min(0).max(1),
     scoreExplanation: relevanceScoreExplanationSchema.default({}),

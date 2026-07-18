@@ -1,6 +1,17 @@
+# Dependencies and package-manager caches
 node_modules/
+.cache/
+
+# Build outputs
 dist/
+build/
+.next/
+out/
+.turbo/
+.vercel/
 packages/database/src/generated/
+
+# Test outputs
 coverage/
 playwright-report/
 test-results/

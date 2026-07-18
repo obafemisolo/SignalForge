@@ -1,110 +1,205 @@
 # SignalForge
 
-SignalForge is an open-source, source-attributed AI research pipeline that turns
-a natural-language question and explicitly permitted public URLs into validated,
-deduplicated, scored records with supporting evidence.
+> Turn focused research questions and explicitly permitted public URLs into
+> validated, deduplicated, evidence-backed signals.
 
-![SignalForge demo placeholder](docs/assets/demo-placeholder.svg)
+[![Node.js 22](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-23845d.svg)](LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-23845d.svg)](CONTRIBUTING.md)
 
-The image is a placeholder for a future product screenshot or short demo GIF.
+SignalForge is an open-source, production-minded AI research pipeline. It
+accepts a natural-language question and a bounded list of public sources,
+processes them asynchronously, and returns structured records with evidence,
+source attribution, confidence, and relevance scores.
 
-## Problem
+The project is an early-stage MVP. The core pipeline works, the boundaries are
+deliberately small, and contributors are welcome across frontend, backend,
+extraction, data processing, testing, documentation, security, and operations.
+
+![SignalForge research interface preview](docs/assets/signalforge-preview.svg)
+
+## Why SignalForge?
 
 Research teams often spend hours opening pages, copying claims into
-spreadsheets, checking duplicates, and losing the evidence behind a result.
-SignalForge provides a repeatable backend workflow with bounded fetching,
-schema-validated LLM extraction, deterministic normalization, source
-attribution, and partial success when individual sources fail.
+spreadsheets, checking duplicates, and later discovering that the evidence
+behind a result has been lost. SignalForge makes that workflow repeatable:
 
-## Architecture
+- only URLs explicitly supplied by the user are fetched;
+- slow work runs outside the HTTP request lifecycle;
+- extracted data is validated before it reaches the database;
+- every result keeps its source and supporting evidence;
+- deterministic normalization and deduplication reduce repeated records;
+- one failed source does not discard successful results from other sources;
+- queue, LLM, fetch, and health metrics make the pipeline observable.
+
+## Start here
+
+If this is your first visit, choose the path that matches your goal:
+
+| I want to…                        | Start with…                                                     |
+| --------------------------------- | --------------------------------------------------------------- |
+| Run SignalForge locally           | [Quick start](#quick-start)                                     |
+| Understand the repository         | [Codebase tour](docs/codebase-tour.md)                          |
+| Make my first contribution        | [Contributing guide](CONTRIBUTING.md)                           |
+| Configure a local environment     | [Local development guide](docs/local-development.md)            |
+| Explore or call the API           | [API workflow](#try-the-api) or `http://localhost:3000/docs`    |
+| Understand an architecture choice | [Architecture decisions](docs/adr)                              |
+| Review security boundaries        | [Security policy](SECURITY.md)                                  |
+| Deploy or operate the stack       | [Deployment](docs/deployment.md) and [runbook](docs/runbook.md) |
+| Find all project documentation    | [Documentation index](docs/README.md)                           |
+
+## Quick start
+
+### Prerequisites
+
+- [Node.js 22](https://nodejs.org/)
+- [pnpm 10](https://pnpm.io/installation) through Corepack
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker
+  Engine with Compose
+- Git
+- an OpenAI-compatible API key if you want research jobs to complete
+
+### 1. Clone and install
+
+```bash
+git clone <your-fork-or-repository-url>
+cd SignalForge
+corepack enable
+corepack prepare pnpm@10.12.1 --activate
+cp .env.example .env
+pnpm install --frozen-lockfile
+```
+
+On Windows PowerShell, replace the copy command with:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Add your provider key to `.env`:
+
+```dotenv
+LLM_API_KEY=your-key-here
+```
+
+The key is not required for unit tests, but the default worker provider needs it
+to process a live research job.
+
+### 2. Start PostgreSQL and Redis
+
+```bash
+docker compose up -d postgres redis
+pnpm db:migrate:deploy
+pnpm db:seed
+```
+
+### 3. Install the browser fallback
+
+```bash
+pnpm --filter @signalforge/extraction exec playwright install chromium
+```
+
+Playwright is used only when normal HTTP and static HTML extraction do not
+produce enough readable content. Set `EXTRACTION_PLAYWRIGHT_ENABLED=false` in
+`.env` if you do not need the fallback.
+
+### 4. Start the applications
+
+```bash
+pnpm dev
+```
+
+This starts:
+
+| Service        | URL                                  |
+| -------------- | ------------------------------------ |
+| Web interface  | `http://localhost:3001`              |
+| API            | `http://localhost:3000`              |
+| OpenAPI UI     | `http://localhost:3000/docs`         |
+| API readiness  | `http://localhost:3000/health/ready` |
+| Worker metrics | `http://localhost:9464/metrics`      |
+
+Prefer separate terminals while debugging a specific process:
+
+```bash
+pnpm --filter @signalforge/api dev
+pnpm --filter @signalforge/worker dev
+pnpm --filter @signalforge/web dev
+```
+
+Open `http://localhost:3001`, submit a focused question and one or more public
+HTTP(S) URLs, then follow the job progress to its validated results.
+
+For Docker-only setup, troubleshooting, integration-test services, and common
+Windows/WSL notes, see [docs/local-development.md](docs/local-development.md).
+
+## How it works
 
 ```mermaid
 flowchart LR
   User[Researcher] --> Web[Next.js web]
   Web --> API[Fastify API]
   API --> DB[(PostgreSQL)]
-  API --> Q[(Redis / BullMQ)]
-  Q --> Worker[Worker processes]
-  Worker --> Extract[HTTP + Cheerio\nPlaywright fallback]
-  Worker --> LLM[OpenAI-compatible provider]
-  Worker --> DB
-  API --> Metrics[Prometheus metrics]
-  Worker --> Metrics
-  Metrics --> Grafana[Grafana optional]
+  API --> Queue[(Redis + BullMQ)]
+  Queue --> Worker[Worker]
+  Worker --> Fetch[Controlled web extraction]
+  Fetch --> LLM[OpenAI-compatible LLM]
+  LLM --> Process[Validate, normalize, score]
+  Process --> DB
+  DB --> API
+  API --> Web
 ```
 
-Deployable applications are in `apps/api`, `apps/worker`, and `apps/web`. Shared
-boundaries are in `packages/config`, `database`, `extraction`, `llm`,
-`observability`, `queue`, `record-processing`, and `schemas`.
-
-## End-to-end workflow
-
-1. The API validates a query, extraction contract, source URLs, and optional
+1. The API validates the query, extraction contract, source URLs, and optional
    idempotency key.
-2. PostgreSQL persists the research job and one source placeholder per URL.
-3. BullMQ receives a deterministic orchestration job; the API never scrapes or
-   calls the LLM inline.
-4. Workers fetch robots.txt and each submitted URL with DNS/IP SSRF controls,
-   rate limits, timeouts, redirect limits, and response-size limits.
-5. Cheerio extracts readable HTML first. Playwright is used only when static
-   content is insufficient, with downloads and browser routes blocked.
+2. PostgreSQL stores the research job and a source document for each URL.
+3. BullMQ receives a deterministic orchestration job. Fetching and LLM work
+   never happen inline in the API request.
+4. Workers enforce robots rules, DNS/IP SSRF controls, limits, timeouts,
+   redirects, and bounded concurrency while fetching sources.
+5. Cheerio extracts static content first. Playwright is a controlled fallback
+   for JavaScript-heavy pages.
 6. Bounded text chunks are sent to an OpenAI-compatible provider as untrusted
-   source data. Zod, evidence, source URL, and mention checks reject unsupported
-   output before persistence.
-7. Records are normalized, deterministically deduplicated, conflict-flagged, and
-   assigned an explainable relevance score.
-8. PostgreSQL stores results, evidence, source attribution, progress events,
-   usage metadata, and terminal source outcomes. The API exposes status/results.
+   source data.
+7. Zod and evidence checks reject malformed or unsupported output.
+8. Valid records are normalized, deduplicated, conflict-flagged, scored, and
+   persisted with their evidence and attribution.
 
-## Technology choices
+See the [codebase tour](docs/codebase-tour.md) for the exact files involved in
+each step.
 
-- Node.js 22 and strict TypeScript provide a supported, typed runtime boundary.
-- Fastify provides a small HTTP surface, structured logging, rate limiting, and
-  OpenAPI documentation.
-- PostgreSQL + Prisma provide transactions, foreign keys, JSONB, and indexed
-  research state.
-- Redis + BullMQ provide retries, exponential backoff, deterministic IDs,
-  stalled-job recovery, and independent worker scaling.
-- Cheerio is the inexpensive default parser; Playwright is an explicitly bounded
-  fallback for JavaScript-heavy pages.
-- OpenAI-compatible providers are isolated behind an LLM interface, so provider
-  credentials and implementation details stay out of domain code.
-- Zod validates external input, queue contracts, environment variables, and LLM
-  output at runtime.
-- Pino and Prometheus-compatible metrics support operational debugging without
-  logging source text or credentials.
+## Repository at a glance
 
-## Reliability characteristics
+```text
+SignalForge/
+├── apps/
+│   ├── api/                  Fastify HTTP API and OpenAPI routes
+│   ├── web/                  Next.js research interface and API proxy
+│   └── worker/               BullMQ consumers and pipeline orchestration
+├── packages/
+│   ├── config/               Validated environment configuration
+│   ├── database/             Prisma schema, repositories, and migrations
+│   ├── extraction/           Safe HTTP, robots, HTML, and Playwright extraction
+│   ├── llm/                  Provider boundary, prompts, chunking, validation
+│   ├── observability/        Structured logging and Prometheus metrics
+│   ├── queue/                Queue contracts, IDs, retries, and heartbeat
+│   ├── record-processing/    Normalization, deduplication, conflicts, scoring
+│   └── schemas/              Shared API, queue, and persistence schemas
+├── tests/                    Workspace and database integration tests
+├── docs/                     Guides, examples, security review, and ADRs
+├── ops/                      Prometheus and Grafana configuration
+└── docker-compose.yml        Local and containerized service stack
+```
 
-- API and workers are separate processes and scale independently.
-- Queue jobs have bounded attempts, exponential backoff, timeouts, retention,
-  stalled-job recovery, dead-letter context, and graceful shutdown.
-- Source failures are isolated; jobs can complete partially.
-- Database progress updates are transactional and repository-mediated.
-- Deterministic job IDs prevent duplicate processing after restarts.
-- Per-domain and global fetch concurrency, request delays, body limits, and
-  total timeouts are configurable.
-- Worker heartbeats and API/worker readiness probes cover PostgreSQL, Redis, and
-  worker availability.
+The rule of thumb is simple: applications compose behavior; packages own
+reusable boundaries. Shared request and queue shapes belong in `schemas`, data
+access belongs in `database`, and slow pipeline stages belong in the worker.
 
-## Security boundaries
+## Try the API
 
-Only explicitly submitted public HTTP(S) URLs are in scope. URL normalization,
-DNS resolution, private/link-local/metadata blocking, pinned HTTP lookups, and
-redirect revalidation reduce SSRF risk. Webpage text is untrusted prompt data;
-the LLM must return evidence tied to the supplied source and output is rejected
-unless schema checks pass. Logs redact API keys, authorization, cookies,
-passwords, tokens, and connection URLs. Docker runtime images use non-root users
-and secrets are environment-injected.
-
-The MVP intentionally has no authentication or authorization. Deploy behind an
-authenticated gateway before exposing it to untrusted users. See
-[`SECURITY.md`](SECURITY.md) and
-[`docs/security-review.md`](docs/security-review.md).
-
-## API example
-
-Create a job:
+Create a research job:
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/research-jobs \
@@ -113,142 +208,116 @@ curl -X POST http://localhost:3000/api/v1/research-jobs \
   --data @docs/sample-data.json
 ```
 
-Request body:
-
-```json
-{
-  "query": "Find Nigerian fintech companies currently hiring backend engineers",
-  "sources": ["https://example.com/jobs"],
-  "schema": {
-    "type": "companyHiringSignal",
-    "fields": [
-      "company",
-      "website",
-      "role",
-      "location",
-      "signal",
-      "sourceUrl",
-      "evidence"
-    ]
-  }
-}
-```
-
-The `202 Accepted` response is:
-
-```json
-{
-  "data": {
-    "id": "00000000-0000-4000-8000-000000000001",
-    "status": "QUEUED",
-    "createdAt": "2026-07-17T12:00:00.000Z",
-    "statusUrl": "/api/v1/research-jobs/00000000-0000-4000-8000-000000000001"
-  },
-  "requestId": "07883774-668f-449c-a84a-bc35fcf8e588"
-}
-```
-
-Use `GET /api/v1/research-jobs/:jobId`,
-`GET /api/v1/research-jobs/:jobId/results?page=1&limit=20`, and
-`POST /api/v1/research-jobs/:jobId/retry`. OpenAPI is available at `/docs`;
-liveness, readiness, and Prometheus metrics are at `/health/live`,
-`/health/ready`, and `/metrics`.
-
-## Local development
-
-Prerequisites: Node.js 22, pnpm 10, Docker Compose, and (for browser fallback)
-the Playwright Chromium binary.
+The API returns `202 Accepted` with a job ID. Use it to inspect progress and
+results:
 
 ```bash
-corepack enable
-corepack prepare pnpm@10.12.1 --activate
-cp .env.example .env
-pnpm install --frozen-lockfile
-pnpm --filter @signalforge/extraction exec playwright install chromium
-docker compose up -d postgres redis
-pnpm db:migrate:deploy
-pnpm db:seed
+curl http://localhost:3000/api/v1/research-jobs/JOB_ID
+curl "http://localhost:3000/api/v1/research-jobs/JOB_ID/results?page=1&limit=20"
+curl -X POST http://localhost:3000/api/v1/research-jobs/JOB_ID/retry
 ```
 
-Start the API, worker, and web app in separate terminals:
+You can also import
+[the Postman collection](docs/postman/SignalForge.postman_collection.json) or
+open the interactive API documentation at `http://localhost:3000/docs`.
 
-```bash
-pnpm --filter @signalforge/api dev
-pnpm --filter @signalforge/worker dev
-pnpm --filter @signalforge/web dev
-```
+## Development commands
 
-Open `http://localhost:3001`. For the full container stack use
-`docker compose --profile migrate run --rm migrate` followed by
-`docker compose up --build`. Add `--profile observability` for Prometheus and
-Grafana. Test-only PostgreSQL and Redis services use `--profile test`.
+| Command                  | Purpose                                                   |
+| ------------------------ | --------------------------------------------------------- |
+| `pnpm dev`               | Run the API, worker, and web app in watch mode            |
+| `pnpm format`            | Format supported files                                    |
+| `pnpm format:check`      | Check formatting without changing files                   |
+| `pnpm lint`              | Run ESLint with zero warnings allowed                     |
+| `pnpm typecheck`         | Generate Prisma types and type-check the workspace        |
+| `pnpm test`              | Run unit and workspace tests                              |
+| `pnpm test:integration`  | Migrate the isolated test DB and run DB integration tests |
+| `pnpm build`             | Build all applications and packages                       |
+| `pnpm db:migrate`        | Create and apply a development migration                  |
+| `pnpm db:migrate:deploy` | Apply committed migrations                                |
+| `pnpm db:seed`           | Seed the local development database                       |
 
-## Testing
+Before opening a pull request, run:
 
 ```bash
 pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm test:integration
 pnpm build
-pnpm audit --audit-level=high
 ```
 
-Integration tests require the isolated test services and never use the
-development database. CI also builds all three Docker images and validates
-Compose configuration. The shell examples are in
-[`docs/curl-examples.sh`](docs/curl-examples.sh); an importable Postman
-collection is in
-[`docs/postman/SignalForge.postman_collection.json`](docs/postman/SignalForge.postman_collection.json).
+CI repeats these checks, applies test migrations, audits dependencies, builds
+all three Docker images, and validates the Compose configuration.
 
-## Deployment architecture
+## Good places to contribute
 
-The cost-conscious AWS shape is Route 53 + ACM + Application Load Balancer in
-front of ECS Fargate API/web services, with an independently scaling worker
-service. RDS PostgreSQL stores durable state, ElastiCache Redis runs BullMQ,
-CloudWatch receives logs/alarms, and Secrets Manager or Parameter Store injects
-credentials. Keep data services and tasks private; expose only the ALB. Run
-Prisma migrations as an explicit one-off release task before deploying API and
-workers. See [`docs/deployment.md`](docs/deployment.md) and
-[`docs/environment.md`](docs/environment.md).
+You do not need to understand the whole pipeline before helping.
 
-## Known limitations
+- **Frontend:** accessibility, responsive states, result exploration, and
+  component tests in `apps/web`.
+- **API:** route contracts, error handling, OpenAPI quality, and service tests
+  in `apps/api`.
+- **Extraction:** safe parser improvements and difficult public-page fixtures in
+  `packages/extraction`.
+- **LLM reliability:** provider adapters, schema repair, chunking, and evidence
+  validation in `packages/llm`.
+- **Data quality:** normalization, explainable scoring, deduplication, and
+  conflict handling in `packages/record-processing`.
+- **Operations:** dashboards, metrics, health checks, deployment guidance, and
+  recovery exercises in `ops` and `docs`.
+- **Documentation:** examples, diagrams, tutorials, accessibility, and clearer
+  explanations are first-class contributions.
 
-- No authentication, authorization, tenancy, or user quota system.
-- Explicit-source-only MVP; no broad crawling or discovery.
-- Extraction supports HTML/plain text and can still fail on difficult pages.
-- Playwright increases worker image size and resource usage.
-- LLM quality, latency, availability, and cost depend on the configured
-  provider.
-- CSV export currently represents the loaded results page.
-- Redis and PostgreSQL require production network isolation and credential
-  management.
-- The current dependency audit reports two moderate advisories.
+For a first pull request, documentation, test coverage, fixtures, narrowly
+scoped UI improvements, and reproducible bug fixes are excellent starting
+points. Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing security,
+fetching, queue, schema, or persistence boundaries.
 
-## Future improvements
+## Project principles
 
-- Add identity, tenant isolation, quotas, and per-user job authorization.
-- Add provider allowlists, richer source credibility metadata, and cost budgets.
-- Add durable crawl/discovery only after a separate legal and security review.
-- Add complete paginated export jobs and richer result filtering.
-- Add managed AWS deployment automation and disaster-recovery exercises.
-- Expand integration, browser, load, and adversarial security testing.
+- **Evidence first:** a record without traceable source evidence is not useful.
+- **Explicit sources only:** SignalForge does not broadly crawl the web.
+- **Safe boundaries:** URLs, queue messages, LLM output, and environment values
+  are untrusted until validated.
+- **Partial success:** one source failure should not erase valid work.
+- **Deterministic where possible:** normalization, identifiers, and retries
+  should behave predictably.
+- **Observable by default:** important work should be measurable without logging
+  secrets or source content.
+- **Small, reviewable changes:** clarity and correctness matter more than clever
+  abstractions.
 
-## Ethical web-extraction policy
+## Security and ethical use
 
 SignalForge fetches only public pages explicitly supplied by the user. It does
 not bypass authentication, paywalls, CAPTCHAs, anti-bot controls, or platform
-restrictions; it respects robots.txt where applicable; it avoids sensitive
-personal data; and it identifies itself with a clear user-agent. Rate limits,
-bounded concurrency, response limits, and request timeouts protect both the
-service and source sites. Users are responsible for ensuring their research
-purpose and submitted sources comply with applicable law and terms of service.
+restrictions. Contributors must preserve robots handling, SSRF controls, rate
+limits, bounded concurrency, response limits, evidence attribution, and secret
+redaction.
 
-## Project governance
+The MVP does not include authentication or authorization. Do not expose it
+directly to untrusted users without an authenticated gateway. Report
+vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md),
-[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md), [`SECURITY.md`](SECURITY.md), and
-the architecture decision records in [`docs/adr`](docs/adr). The repository is
-released under the ISC license shown in [`LICENSE`](LICENSE), matching the
-existing package metadata.
+## Current limitations
+
+- No authentication, authorization, tenancy, or user quota system.
+- Explicit-source-only research; no broad crawling or discovery.
+- Extraction currently targets HTML and plain-text pages.
+- Playwright adds worker image and runtime cost.
+- LLM quality, latency, availability, and cost depend on the configured
+  provider.
+- CSV export represents the records currently loaded by the interface.
+
+These constraints are intentional starting points, not an invitation to bypass
+the project’s safety model. Proposals that broaden them should begin with an
+issue and an architecture or security discussion.
+
+## Community
+
+Please read our [contribution guide](CONTRIBUTING.md) and
+[Code of Conduct](CODE_OF_CONDUCT.md). Use the GitHub issue templates for bugs
+and feature proposals, and keep sensitive reports out of public issues.
+
+SignalForge is available under the [ISC license](LICENSE).

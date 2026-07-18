@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">SignalForge research interface</title>
+  <desc id="desc">A warm cream research workspace with a focused research form and an evidence checklist.</desc>
+
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#1c2019" flood-opacity=".07"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="675" fill="#f3f2e8"/>
+  <path d="M0 72.5h1200" stroke="#dfded3"/>
+
+  <g transform="translate(70 22)">
+    <rect width="32" height="32" rx="10" fill="#1b1d22" transform="rotate(-8 16 16)"/>
+    <path d="M9 10h14M9 16h10M9 22h6" stroke="#f3f2e8" stroke-width="2.2" stroke-linecap="round" transform="rotate(-8 16 16)"/>
+    <text x="46" y="23" fill="#1b1d22" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" font-weight="700">SignalForge</text>
+  </g>
+  <text x="1130" y="42" fill="#6f716d" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="1.6" text-anchor="end">AI RESEARCH WORKSPACE</text>
+
+  <g transform="translate(105 116)">
+    <circle cx="4" cy="4" r="4" fill="#23845d"/>
+    <text x="16" y="8" fill="#23845d" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">PUBLIC WEB RESEARCH</text>
+
+    <text x="0" y="76" fill="#1b1d22" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="52" font-weight="750" letter-spacing="-2">Turn a question into a</text>
+    <text x="0" y="132" fill="#23845d" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="52" font-style="italic" font-weight="520" letter-spacing="-2">sourced signal.</text>
+    <text x="0" y="174" fill="#6f716d" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16">Submit focused research and keep every validated result tied to its source evidence.</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="105" y="322" width="650" height="300" rx="28" fill="#fffefa" stroke="#dfded3"/>
+    <rect x="785" y="322" width="310" height="258" rx="28" fill="#fffefa" stroke="#dfded3"/>
+  </g>
+
+  <g transform="translate(137 350)" font-family="Inter,Segoe UI,Arial,sans-serif">
+    <rect width="38" height="38" rx="12" fill="#e1f3e9"/>
+    <text x="19" y="24" fill="#23845d" font-size="10" font-weight="800" text-anchor="middle">01</text>
+    <text x="54" y="25" fill="#1b1d22" font-size="23" font-weight="750">New research job</text>
+    <text x="54" y="47" fill="#6f716d" font-size="12">Define a focused question and the sources we may inspect.</text>
+
+    <text x="0" y="87" fill="#1b1d22" font-size="11" font-weight="700">What should we research?</text>
+    <rect y="101" width="586" height="68" rx="17" fill="#f8f7f0" stroke="#dfded3"/>
+    <text x="17" y="129" fill="#969893" font-size="14">Find companies currently hiring backend engineers</text>
+
+    <text x="0" y="199" fill="#1b1d22" font-size="11" font-weight="700">Permitted source URLs</text>
+    <rect y="213" width="586" height="58" rx="17" fill="#f8f7f0" stroke="#dfded3"/>
+    <text x="17" y="247" fill="#969893" font-size="14">https://example.com/careers</text>
+  </g>
+
+  <g transform="translate(817 354)" font-family="Inter,Segoe UI,Arial,sans-serif">
+    <circle cx="4" cy="4" r="4" fill="#23845d"/>
+    <text x="16" y="8" fill="#23845d" font-size="10" font-weight="700" letter-spacing="1.3">WHAT YOU GET</text>
+    <text x="0" y="49" fill="#1b1d22" font-size="22" font-weight="750">Research you can trace.</text>
+
+    <g fill="#6f716d" font-size="13">
+      <circle cx="9" cy="88" r="9" fill="#e1f3e9"/>
+      <text x="9" y="92" fill="#23845d" font-size="10" font-weight="800" text-anchor="middle">✓</text>
+      <text x="28" y="93">Live source progress</text>
+
+      <circle cx="9" cy="128" r="9" fill="#e1f3e9"/>
+      <text x="9" y="132" fill="#23845d" font-size="10" font-weight="800" text-anchor="middle">✓</text>
+      <text x="28" y="133">Partial success</text>
+
+      <circle cx="9" cy="168" r="9" fill="#e1f3e9"/>
+      <text x="9" y="172" fill="#23845d" font-size="10" font-weight="800" text-anchor="middle">✓</text>
+      <text x="28" y="173">Evidence for every record</text>
+
+      <circle cx="9" cy="208" r="9" fill="#e1f3e9"/>
+      <text x="9" y="212" fill="#23845d" font-size="10" font-weight="800" text-anchor="middle">✓</text>
+      <text x="28" y="213">Explainable scoring</text>
+    </g>
+  </g>
+</svg>

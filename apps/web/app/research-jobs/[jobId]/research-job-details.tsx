@@ -165,9 +165,13 @@ export default function ResearchJobDetails({ jobId }: { jobId: string }) {
 
   if (loading && job === null)
     return (
-      <p className="loading" role="status">
-        Loading research job…
-      </p>
+      <div className="card loading-state" role="status" aria-live="polite">
+        <span className="loading-spinner" aria-hidden="true" />
+        <div>
+          <strong>Loading research job</strong>
+          <p>Gathering the latest source progress and validated results…</p>
+        </div>
+      </div>
     );
   if (error !== null && job === null)
     return (
@@ -213,14 +217,17 @@ export default function ResearchJobDetails({ jobId }: { jobId: string }) {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 28 }}>
+      <div className="card progress-card">
         <div className="status-row">
-          <span className={`status status-${job.status.toLowerCase()}`}>
+          <span
+            className={`status status-${job.status.toLowerCase()}`}
+            aria-label={`Job status: ${job.status.toLowerCase()}`}
+          >
             {job.status}
           </span>
           <span className="muted">Elapsed {formatDuration(elapsed)}</span>
         </div>
-        <div style={{ marginTop: 20 }}>
+        <div className="progress-content">
           <div className="status-row">
             <span className="muted">Source progress</span>
             <strong>{percentage}%</strong>
@@ -232,7 +239,6 @@ export default function ResearchJobDetails({ jobId }: { jobId: string }) {
             aria-valuemax={100}
             aria-valuemin={0}
             aria-valuenow={percentage}
-            style={{ marginTop: 9 }}
           >
             <div className="progress-bar" style={{ width: `${percentage}%` }} />
           </div>
@@ -287,6 +293,7 @@ export default function ResearchJobDetails({ jobId }: { jobId: string }) {
           className="button-secondary"
           disabled={records.length === 0}
           onClick={downloadCsv}
+          aria-label={`Export ${records.length} results as CSV`}
         >
           Export CSV
         </button>
@@ -300,10 +307,7 @@ export default function ResearchJobDetails({ jobId }: { jobId: string }) {
           </p>
         ) : (
           <table>
-            <caption
-              className="muted"
-              style={{ textAlign: "left", padding: 12 }}
-            >
+            <caption className="table-caption">
               Source-attributed hiring signals
             </caption>
             <thead>

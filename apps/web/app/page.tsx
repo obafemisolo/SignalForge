@@ -70,7 +70,9 @@ export default function NewResearchJobPage() {
     <>
       <section className="hero">
         <span className="kicker">Public web research</span>
-        <h1>Turn a question into a sourced signal.</h1>
+        <h1>
+          Turn a question into a <em>sourced signal.</em>
+        </h1>
         <p className="lede">
           Submit a focused research request and SignalForge will fetch only the
           public URLs you provide, validate every extracted record, and keep the
@@ -79,8 +81,20 @@ export default function NewResearchJobPage() {
       </section>
 
       <div className="grid">
-        <form className="card form-card" onSubmit={submit}>
-          <h2>New research job</h2>
+        <form
+          className="card form-card"
+          onSubmit={submit}
+          aria-busy={submitting}
+        >
+          <div className="card-heading">
+            <span className="step-mark" aria-hidden="true">
+              01
+            </span>
+            <div>
+              <h2>New research job</h2>
+              <p>Define a focused question and the sources we may inspect.</p>
+            </div>
+          </div>
           <label htmlFor="query">What should we research?</label>
           <textarea
             id="query"
@@ -94,7 +108,8 @@ export default function NewResearchJobPage() {
             id="sources"
             value={sources}
             onChange={(event) => setSources(event.target.value)}
-            placeholder="https://example.com/careers\nhttps://another.example/jobs"
+            placeholder={`https://example.com/careers
+https://another.example/jobs`}
             required
           />
           <p className="help">
@@ -123,8 +138,9 @@ export default function NewResearchJobPage() {
           </div>
         </form>
 
-        <aside className="card">
+        <aside className="card guide-card">
           <span className="kicker">What you get</span>
+          <h2>Research you can trace.</h2>
           <ul className="side-list">
             <li>Progress updates as each source completes.</li>
             <li>Partial success when one source fails.</li>

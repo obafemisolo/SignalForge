@@ -4,6 +4,30 @@ This document describes the supported deployment shape and the smallest credible
 AWS production setup. Terraform is intentionally out of scope; these steps are
 an architecture and operations guide for a later infrastructure implementation.
 
+## Portable application bundles
+
+SignalForge uses pnpm's injected workspace packages so `pnpm deploy` can include
+the built shared packages in a self-contained production bundle. Install and
+build the workspace before creating one:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm --filter @signalforge/api... build
+pnpm --filter @signalforge/api --prod deploy ./deploy/api
+```
+
+For the worker:
+
+```bash
+pnpm --filter @signalforge/worker... build
+pnpm --filter @signalforge/worker --prod deploy ./deploy/worker
+```
+
+The Dockerfiles perform the same build-and-deploy sequence inside their builder
+stages. Do not use `--legacy`; the committed `pnpm-workspace.yaml` configuration
+keeps local development and container deployment on the same dependency model.
+
 ## Configuration by environment
 
 | Environment | Runtime                                           | Data                                          | External integrations                      |

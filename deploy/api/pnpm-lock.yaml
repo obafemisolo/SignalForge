@@ -8,235 +8,50 @@ settings:
 importers:
 
   .:
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.28.0
-        version: 9.39.4
-      '@types/node':
-        specifier: ^22.15.30
-        version: 22.20.1
-      dotenv:
-        specifier: ^17.2.3
-        version: 17.4.2
-      eslint:
-        specifier: ^9.28.0
-        version: 9.39.4(jiti@2.7.0)
-      globals:
-        specifier: ^16.2.0
-        version: 16.5.0
-      prettier:
-        specifier: ^3.5.3
-        version: 3.8.1
-      tsx:
-        specifier: ^4.19.4
-        version: 4.23.0
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-      typescript-eslint:
-        specifier: ^8.34.0
-        version: 8.64.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
-      vitest:
-        specifier: ^3.2.3
-        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0)
-
-  apps/api:
     dependencies:
       '@fastify/rate-limit':
-        specifier: ^10.3.0
+        specifier: 10.3.0
         version: 10.3.0
       '@fastify/swagger':
-        specifier: ^9.5.1
+        specifier: 9.8.1
         version: 9.8.1
       '@fastify/swagger-ui':
-        specifier: ^5.2.3
+        specifier: 5.2.6
         version: 5.2.6
       '@signalforge/config':
-        specifier: workspace:*
-        version: link:../../packages/config
+        specifier: '@signalforge/config@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/config'
+        version: '@signalforge/config@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/config'
       '@signalforge/database':
-        specifier: workspace:*
-        version: link:../../packages/database
+        specifier: '@signalforge/database@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/database'
+        version: '@signalforge/database@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/database'
       '@signalforge/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
+        specifier: '@signalforge/observability@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/observability'
+        version: '@signalforge/observability@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/observability'
       '@signalforge/queue':
-        specifier: workspace:*
-        version: link:../../packages/queue
+        specifier: '@signalforge/queue@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/queue'
+        version: '@signalforge/queue@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/queue'
       '@signalforge/schemas':
-        specifier: workspace:*
-        version: link:../../packages/schemas
+        specifier: '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas'
+        version: '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas'
       fastify:
-        specifier: ^5.4.0
+        specifier: 5.10.0
         version: 5.10.0
       ioredis:
-        specifier: ^5.7.0
+        specifier: 5.11.1
         version: 5.11.1
       pino:
-        specifier: ^9.7.0
+        specifier: 9.14.0
         version: 9.14.0
       zod:
-        specifier: ^3.25.67
+        specifier: 3.25.76
         version: 3.25.76
       zod-to-json-schema:
-        specifier: ^3.24.6
+        specifier: 3.25.2(zod@3.25.76)
         version: 3.25.2(zod@3.25.76)
     devDependencies:
       tsx:
-        specifier: ^4.19.4
+        specifier: 4.23.0
         version: 4.23.0
-
-  apps/web:
-    dependencies:
-      next:
-        specifier: ^15.5.0
-        version: 15.5.20(@opentelemetry/api@1.9.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      react:
-        specifier: ^19.1.0
-        version: 19.2.7
-      react-dom:
-        specifier: ^19.1.0
-        version: 19.2.7(react@19.2.7)
-    devDependencies:
-      '@types/react':
-        specifier: ^19.1.0
-        version: 19.2.17
-      '@types/react-dom':
-        specifier: ^19.1.0
-        version: 19.2.3(@types/react@19.2.17)
-
-  apps/worker:
-    dependencies:
-      '@signalforge/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@signalforge/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@signalforge/extraction':
-        specifier: workspace:*
-        version: link:../../packages/extraction
-      '@signalforge/llm':
-        specifier: workspace:*
-        version: link:../../packages/llm
-      '@signalforge/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
-      '@signalforge/queue':
-        specifier: workspace:*
-        version: link:../../packages/queue
-      '@signalforge/record-processing':
-        specifier: workspace:*
-        version: link:../../packages/record-processing
-      '@signalforge/schemas':
-        specifier: workspace:*
-        version: link:../../packages/schemas
-      bullmq:
-        specifier: ^5.58.5
-        version: 5.80.6
-      pino:
-        specifier: ^9.7.0
-        version: 9.14.0
-    devDependencies:
-      tsx:
-        specifier: ^4.19.4
-        version: 4.23.0
-
-  packages/config:
-    dependencies:
-      zod:
-        specifier: ^3.25.64
-        version: 3.25.76
-
-  packages/database:
-    dependencies:
-      '@prisma/adapter-pg':
-        specifier: ^7.0.0
-        version: 7.8.0
-      '@prisma/client':
-        specifier: ^7.0.0
-        version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(typescript@5.9.3)
-      '@signalforge/record-processing':
-        specifier: workspace:*
-        version: link:../record-processing
-      '@signalforge/schemas':
-        specifier: workspace:*
-        version: link:../schemas
-      ajv:
-        specifier: ^8.17.1
-        version: 8.20.0
-      pg:
-        specifier: ^8.16.3
-        version: 8.22.0
-    devDependencies:
-      '@types/pg':
-        specifier: ^8.15.5
-        version: 8.20.0
-      dotenv:
-        specifier: ^17.2.3
-        version: 17.4.2
-      prisma:
-        specifier: ^7.0.0
-        version: 7.8.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
-      tsx:
-        specifier: ^4.19.4
-        version: 4.23.0
-
-  packages/extraction:
-    dependencies:
-      cheerio:
-        specifier: ^1.1.2
-        version: 1.2.0
-      ipaddr.js:
-        specifier: ^2.2.0
-        version: 2.4.0
-      playwright:
-        specifier: ^1.55.0
-        version: 1.61.1
-      robots-parser:
-        specifier: ^3.0.1
-        version: 3.0.1
-
-  packages/llm:
-    dependencies:
-      '@signalforge/schemas':
-        specifier: workspace:*
-        version: link:../schemas
-      zod:
-        specifier: ^3.25.67
-        version: 3.25.76
-
-  packages/observability:
-    dependencies:
-      pino:
-        specifier: ^9.7.0
-        version: 9.14.0
-      prom-client:
-        specifier: ^15.1.3
-        version: 15.1.3
-
-  packages/queue:
-    dependencies:
-      '@signalforge/schemas':
-        specifier: workspace:*
-        version: link:../schemas
-      bullmq:
-        specifier: ^5.58.5
-        version: 5.80.6
-      ioredis:
-        specifier: ^5.7.0
-        version: 5.11.1
-      zod:
-        specifier: ^3.25.67
-        version: 3.25.76
-
-  packages/record-processing: {}
-
-  packages/schemas:
-    dependencies:
-      zod:
-        specifier: ^3.25.64
-        version: 3.25.76
 
 packages:
 
@@ -1012,6 +827,36 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@signalforge/config@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/config':
+    resolution: {directory: ../../packages/config, type: directory}
+
+  '@signalforge/database@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/database':
+    resolution: {directory: ../../packages/database, type: directory}
+
+  '@signalforge/extraction@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/extraction':
+    resolution: {directory: ../../packages/extraction, type: directory}
+
+  '@signalforge/llm@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/llm':
+    resolution: {directory: ../../packages/llm, type: directory}
+
+  '@signalforge/observability@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/observability':
+    resolution: {directory: ../../packages/observability, type: directory}
+
+  '@signalforge/queue@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/queue':
+    resolution: {directory: ../../packages/queue, type: directory}
+
+  '@signalforge/record-processing@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/record-processing':
+    resolution: {directory: ../../packages/record-processing, type: directory}
+
+  '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas':
+    resolution: {directory: ../../packages/schemas, type: directory}
+
+  '@signalforge/web@file:///C:/Users/SOLO/Desktop/work/SignalForge/apps/web':
+    resolution: {directory: ../../apps/web, type: directory}
+
+  '@signalforge/worker@file:///C:/Users/SOLO/Desktop/work/SignalForge/apps/worker':
+    resolution: {directory: ../../apps/worker, type: directory}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -2101,6 +1946,9 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
+  signalforge@file:///C:/Users/SOLO/Desktop/work/SignalForge:
+    resolution: {directory: ../.., type: directory}
+
   sonic-boom@4.2.1:
     resolution: {integrity: sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q==}
 
@@ -2966,6 +2814,68 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@signalforge/config@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/config':
+    dependencies:
+      zod: 3.25.76
+
+  '@signalforge/database@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/database':
+    dependencies:
+      '@prisma/adapter-pg': 7.8.0
+      '@prisma/client': 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(typescript@5.9.3)
+      '@signalforge/record-processing': '@signalforge/record-processing@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/record-processing'
+      '@signalforge/schemas': '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas'
+      ajv: 8.20.0
+      pg: 8.22.0
+
+  '@signalforge/extraction@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/extraction':
+    dependencies:
+      cheerio: 1.2.0
+      ipaddr.js: 2.4.0
+      playwright: 1.61.1
+      robots-parser: 3.0.1
+
+  '@signalforge/llm@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/llm':
+    dependencies:
+      '@signalforge/schemas': '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas'
+      zod: 3.25.76
+
+  '@signalforge/observability@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/observability':
+    dependencies:
+      pino: 9.14.0
+      prom-client: 15.1.3
+
+  '@signalforge/queue@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/queue':
+    dependencies:
+      '@signalforge/schemas': '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas'
+      bullmq: 5.80.6
+      ioredis: 5.11.1
+      zod: 3.25.76
+
+  '@signalforge/record-processing@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/record-processing': {}
+
+  '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas':
+    dependencies:
+      zod: 3.25.76
+
+  '@signalforge/web@file:///C:/Users/SOLO/Desktop/work/SignalForge/apps/web':
+    dependencies:
+      next: 15.5.20(@opentelemetry/api@1.9.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  '@signalforge/worker@file:///C:/Users/SOLO/Desktop/work/SignalForge/apps/worker':
+    dependencies:
+      '@signalforge/config': '@signalforge/config@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/config'
+      '@signalforge/database': '@signalforge/database@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/database'
+      '@signalforge/extraction': '@signalforge/extraction@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/extraction'
+      '@signalforge/llm': '@signalforge/llm@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/llm'
+      '@signalforge/observability': '@signalforge/observability@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/observability'
+      '@signalforge/queue': '@signalforge/queue@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/queue'
+      '@signalforge/record-processing': '@signalforge/record-processing@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/record-processing'
+      '@signalforge/schemas': '@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas'
+      bullmq: 5.80.6
+      pino: 9.14.0
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -4153,6 +4063,8 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  signalforge@file:///C:/Users/SOLO/Desktop/work/SignalForge: {}
 
   sonic-boom@4.2.1:
     dependencies:

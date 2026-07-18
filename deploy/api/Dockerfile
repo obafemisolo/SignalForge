@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 ENV COREPACK_HOME=/corepack
@@ -19,7 +19,7 @@ RUN pnpm --filter @signalforge/api --prod deploy /opt/signalforge
 FROM build AS migrate
 CMD ["pnpm", "--filter", "@signalforge/database", "db:migrate:deploy"]
 
-FROM node:24-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /opt/signalforge
 ENV NODE_ENV=production

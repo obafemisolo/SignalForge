@@ -1,0 +1,33 @@
+{
+  "name": "@signalforge/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SignalForge HTTP API.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "10.3.0",
+    "@fastify/swagger": "9.8.1",
+    "@fastify/swagger-ui": "5.2.6",
+    "@signalforge/config": "@signalforge/config@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/config",
+    "@signalforge/database": "@signalforge/database@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/database",
+    "@signalforge/observability": "@signalforge/observability@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/observability",
+    "@signalforge/queue": "@signalforge/queue@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/queue",
+    "@signalforge/schemas": "@signalforge/schemas@file:///C:/Users/SOLO/Desktop/work/SignalForge/packages/schemas",
+    "fastify": "5.10.0",
+    "ioredis": "5.11.1",
+    "pino": "9.14.0",
+    "zod": "3.25.76",
+    "zod-to-json-schema": "3.25.2(zod@3.25.76)"
+  },
+  "devDependencies": {
+    "tsx": "4.23.0"
+  },
+  "optionalDependencies": {},
+  "pnpm": {}
+}

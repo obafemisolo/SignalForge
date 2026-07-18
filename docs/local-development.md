@@ -7,7 +7,7 @@ development environment.
 
 | Tool           | Supported version | Check                    |
 | -------------- | ----------------- | ------------------------ |
-| Node.js        | 22.x              | `node --version`         |
+| Node.js        | 22.x or 24.x      | `node --version`         |
 | pnpm           | 10.x              | `pnpm --version`         |
 | Docker Compose | Current v2        | `docker compose version` |
 | Git            | Current           | `git --version`          |
@@ -211,7 +211,7 @@ when you intentionally want to delete local state.
 
 ### `pnpm` or Node is not the expected version
 
-The repository requires Node 22 and pnpm 10:
+The repository supports Node 22 and Node 24 LTS and requires pnpm 10:
 
 ```bash
 node --version
@@ -219,7 +219,9 @@ pnpm --version
 corepack prepare pnpm@10.12.1 --activate
 ```
 
-If you use a Node version manager, the repository’s `.nvmrc` selects Node 22.
+If you use a Node version manager, the repository’s `.nvmrc` selects the
+recommended Node 24 LTS release. Contributors already using Node 22 do not need
+to switch.
 
 ### Port already in use
 

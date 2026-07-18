@@ -3,7 +3,7 @@
 > Turn focused research questions and explicitly permitted public URLs into
 > validated, deduplicated, evidence-backed signals.
 
-[![Node.js 22](https://img.shields.io/badge/Node.js-22-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Node.js 22 and 24](https://img.shields.io/badge/Node.js-22%20%7C%2024-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![pnpm 10](https://img.shields.io/badge/pnpm-10-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-23845d.svg)](LICENSE)
@@ -54,7 +54,7 @@ If this is your first visit, choose the path that matches your goal:
 
 ### Prerequisites
 
-- [Node.js 22](https://nodejs.org/)
+- [Node.js 22 or 24 LTS](https://nodejs.org/) (24 recommended)
 - [pnpm 10](https://pnpm.io/installation) through Corepack
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker
   Engine with Compose

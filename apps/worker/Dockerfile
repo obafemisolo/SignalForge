@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 ENV COREPACK_HOME=/corepack
@@ -17,9 +17,9 @@ RUN pnpm db:generate
 RUN pnpm --filter @signalforge/worker... build
 RUN mkdir -p /ms-playwright \
   && pnpm --filter @signalforge/extraction exec playwright install --with-deps chromium
-RUN pnpm deploy --filter @signalforge/worker --prod /opt/signalforge
+RUN pnpm --filter @signalforge/worker --prod deploy /opt/signalforge
 
-FROM node:22-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 
 WORKDIR /opt/signalforge
 ENV NODE_ENV=production
